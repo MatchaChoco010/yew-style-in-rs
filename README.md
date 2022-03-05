@@ -2,7 +2,7 @@
 [![crates.io](https://img.shields.io/crates/v/yew-style-in-rs.svg)](https://crates.io/crates/yew-style-in-rs)
 [![docs.rs](https://docs.rs/yew-style-in-rs/badge.svg)](https://docs.rs/yew-style-in-rs)
 
-CSS in Rust for Yew
+Scoped CSS in Rust for Yew.
 
 ## example
 
