@@ -25,4 +25,4 @@ web-sys = { version = "0.3.56", features = [
     "HtmlStyleElement",
 ]}
 yew = "0.19.3"
-yew-style-in-rs-macro = { path = "../yew-style-in-rs-macro" }
+yew-style-in-rs-macro = "0.1.0"
