@@ -1,0 +1,16 @@
+[package]
+name = "my-app"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+console_error_panic_hook = "0.1.7"
+my-component-a = { path = "../my-component-a" }
+my-component-b = { path = "../my-component-b" }
+yew = "0.19.3"
+wasm-bindgen = "0.2.79"
+wasm-logger = "0.2.0"
+wee_alloc = "0.4.5"

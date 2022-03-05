@@ -1,0 +1,8 @@
+[package]
+name = "my-component-b"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+yew = "0.19.3"
+yew-style-in-rs = { path = "../../packages/yew-style-in-rs" }
