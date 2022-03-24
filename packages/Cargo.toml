@@ -1,5 +1,6 @@
 [workspace]
 members = [
   "yew-style-in-rs",
+  "yew-style-in-rs-core",
   "yew-style-in-rs-macro",
 ]
