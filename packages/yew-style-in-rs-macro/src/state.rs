@@ -9,9 +9,6 @@ use std::sync::Mutex;
 use anyhow::Result;
 use fslock::LockFile;
 use once_cell::sync::Lazy;
-use parcel_css::stylesheet::PrinterOptions;
-use parcel_css::stylesheet::{ParserOptions, StyleSheet};
-use parcel_css::targets::Browsers;
 
 pub static STATE: Lazy<Mutex<State>> = Lazy::new(|| {
     Mutex::new(State::new().expect("Failed to create state of yew-style-in-rs-macro"))
@@ -167,25 +164,10 @@ impl State {
             entry.push(content)
         }
         for (filename, contents) in hashmap {
-            let parser_options = ParserOptions {
-                nesting: true,
-                custom_media: false,
-                css_modules: false,
-                source_index: 0,
-            };
-            let printer_options = PrinterOptions {
-                minify: crate::util::is_release(),
-                source_map: None,
-                targets: Some(Browsers::default()),
-                analyze_dependencies: false,
-                pseudo_classes: None,
-            };
-            let code = contents
+            let css = contents
                 .into_iter()
-                .reduce(|content, item| content + "\n" + &item)
+                .reduce(|content, item| content + &item)
                 .unwrap();
-            let stylesheet = StyleSheet::parse(filename.to_owned(), &code, parser_options).unwrap();
-            let css = stylesheet.to_css(printer_options).unwrap().code;
             let mut file = fs::File::create(out_dir.join(format!("{filename}.css"))).unwrap();
             file.write(css.as_bytes()).unwrap();
         }

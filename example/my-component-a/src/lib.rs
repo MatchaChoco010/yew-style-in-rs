@@ -21,29 +21,29 @@ pub fn my_component_a() -> Html {
         }
     });
 
-    let css = css!(
-        "border: solid 1px black;
-    width: 100%;
-    height: 150px;
-    text-align: center;
-    box-sizing: border-box;
+    // let dynamic_css = dynamic_css!(format!(
+    //     "background: {background};
 
-    &:hover {
-        border: solid 10px black;
+    //     & > p {{
+    //         box-shadow: 0 0 10px {box_shadow};
+    //     }}
+    //     "
+    // ));
+    style! {
+        let css = css!{r#"
+            border: solid 1px black;
+            width: 100%;
+            height: 150px;
+            text-align: center;
+            box-sizing: border-box;
+
+            &:hover {
+                border: solid 10px black;
+            }
+        "#};
     }
-    "
-    );
-    let dynamic_css = dynamic_css!(format!(
-        "background: {background};
-
-        & > p {{
-            box-shadow: 0 0 10px {box_shadow};
-        }}
-        "
-    ));
-
     html! {
-        <div class={classes!(css, dynamic_css)} {onclick}>
+        <div class={classes!(css)} {onclick}>
             <p>{"Click Me"}</p>
             <p>{"dynamic css"}</p>
         </div>
