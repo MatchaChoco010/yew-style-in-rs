@@ -5,6 +5,7 @@ use crate::cursor::*;
 // eg)
 // background: black;
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+#[derive(Clone)]
 pub struct Property {
     pub property: String,
     pub value: String,
@@ -12,6 +13,7 @@ pub struct Property {
 
 // One of property, at-rule, qualified-rule, runtime-parsed-declaration
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+#[derive(Clone)]
 pub enum Declaration {
     Property(Property),
     AtRule(AtRule),
@@ -39,6 +41,7 @@ pub struct Selectors(pub Vec<String>);
 //     background: black;
 // }
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+#[derive(Clone)]
 pub struct QualifiedRule {
     pub selectors: Selectors,
     pub block: Vec<Declaration>,
@@ -53,6 +56,7 @@ pub struct QualifiedRule {
 //     background: black;
 // }
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
+#[derive(Clone)]
 pub struct AtRule {
     pub rule_name: String,
     pub rule_value: String,
@@ -65,28 +69,20 @@ pub struct AtRule {
 //     & .foo {}
 // }
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
-pub struct RuntimeCss(pub QualifiedRule);
+#[derive(Clone)]
+pub struct RuntimeCss(pub Vec<Declaration>);
 impl RuntimeCss {
     // parse CSS code
     //
     // AbCdEfGh
-    pub fn parse(class: impl ToString, code: impl ToString) -> Result<Self, Self> {
+    pub fn parse(code: impl ToString) -> Result<Self, (Self, String)> {
         let code = code.to_string();
         let mut cursor = Cursor::new(&code);
 
         match cursor.parse_declaration_list() {
-            Ok(declarations) => Ok(RuntimeCss(QualifiedRule {
-                selectors: Selectors(vec![class.to_string()]),
-                block: declarations,
-            })),
-            Err(ParseError::Fatal) => Err(RuntimeCss(QualifiedRule {
-                selectors: Selectors(vec![class.to_string()]),
-                block: vec![],
-            })),
-            Err(ParseError::Ignorable(declarations)) => Err(RuntimeCss(QualifiedRule {
-                selectors: Selectors(vec![class.to_string()]),
-                block: declarations,
-            })),
+            Ok(declarations) => Ok(RuntimeCss(declarations)),
+            Err(ParseError::Fatal) => Err((RuntimeCss(vec![]), "[CSS parse error]".into())),
+            Err(ParseError::Ignorable(declarations, msg)) => Err((RuntimeCss(declarations), msg)),
         }
     }
 }

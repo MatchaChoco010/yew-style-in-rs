@@ -21,14 +21,6 @@ pub fn my_component_a() -> Html {
         }
     });
 
-    // let dynamic_css = dynamic_css!(format!(
-    //     "background: {background};
-
-    //     & > p {{
-    //         box-shadow: 0 0 10px {box_shadow};
-    //     }}
-    //     "
-    // ));
     style! {
         let css = css!{r#"
             border: solid 1px black;
@@ -41,9 +33,16 @@ pub fn my_component_a() -> Html {
                 border: solid 10px black;
             }
         "#};
+        let dynamic_css = dyn css!{r#"
+            background: ${background};
+
+            & > p {
+                box-shadow: 0 0 10px ${box_shadow};
+            }
+        "#};
     }
     html! {
-        <div class={classes!(css)} {onclick}>
+        <div class={classes!(css, dynamic_css)} {onclick}>
             <p>{"Click Me"}</p>
             <p>{"dynamic css"}</p>
         </div>

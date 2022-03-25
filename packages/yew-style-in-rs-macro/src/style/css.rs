@@ -6,11 +6,12 @@ use crate::state::*;
 use yew_style_in_rs_core::ast::RuntimeCss;
 use yew_style_in_rs_core::transpiler::TranspiledCss;
 
+#[derive(Clone)]
 pub struct Css {
-    code: syn::LitStr,
+    css: RuntimeCss,
 }
 impl Css {
-    pub fn expand(&self, filename: &Option<syn::LitStr>) -> TokenStream {
+    pub fn expand(self, filename: &Option<syn::LitStr>) -> TokenStream {
         let mut state = STATE.lock().unwrap();
         let (id, mut file) = state
             .create_random_id_file()
@@ -23,28 +24,24 @@ impl Css {
         file.write(format!("{filename}\n").as_bytes())
             .expect("Failed to save internal file for yew-style-in-rs");
 
-        match RuntimeCss::parse(&id, self.code.value()) {
-            Ok(runtime_css) => {
-                let transpiled_css = TranspiledCss::transpile(runtime_css);
-                let css = transpiled_css.to_style_string();
+        let transpiled_css = TranspiledCss::transpile(&[format!(".{id}")], self.css);
+        let css = transpiled_css.to_style_string();
 
-                file.write(css.as_bytes())
-                    .expect("Failed to save internal file for yew-style-in-rs");
+        file.write(css.as_bytes())
+            .expect("Failed to save internal file for yew-style-in-rs");
 
-                quote!({
-                    use ::yew_style_in_rs::css::StyleId;
-                    StyleId::new(#id)
-                })
-            }
-            Err(_) => {
-                quote!(std::compile_error!("CSS parse error"))
-            }
-        }
+        quote!({
+            use ::yew_style_in_rs::css::StyleId;
+            StyleId::new(#id)
+        })
     }
 }
 impl syn::parse::Parse for Css {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let code: syn::LitStr = input.parse()?;
-        Ok(Self { code })
+        match RuntimeCss::parse(code.value()) {
+            Ok(runtime_css) => Ok(Self { css: runtime_css }),
+            Err((_, msg)) => Err(syn::parse::Error::new(code.span(), msg)),
+        }
     }
 }

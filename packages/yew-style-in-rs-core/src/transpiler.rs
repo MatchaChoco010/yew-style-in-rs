@@ -326,9 +326,10 @@ fn declaration_to_style_string(declaration: Declaration) -> String {
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct TranspiledCss(pub Vec<Rule>);
 impl TranspiledCss {
-    pub fn transpile(runtime_css: RuntimeCss) -> TranspiledCss {
-        let declarations =
-            transpile_declarations(runtime_css.0.selectors, vec![], runtime_css.0.block);
+    pub fn transpile(classes: &[impl ToString], runtime_css: RuntimeCss) -> TranspiledCss {
+        let selectors = classes.iter().map(|c| c.to_string()).collect::<Vec<_>>();
+        let selectors = Selectors(selectors);
+        let declarations = transpile_declarations(selectors, vec![], runtime_css.0);
         let rules = into_rules(declarations);
         merge_same_selectors(rules)
     }

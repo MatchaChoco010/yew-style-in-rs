@@ -1,18 +1,18 @@
 use yew::prelude::*;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StyleId(String);
+#[derive(Clone, PartialEq)]
+pub struct StyleId(&'static str);
 impl StyleId {
-    pub fn new(id: &str) -> Self {
-        Self(id.to_string())
+    pub fn new(id: &'static str) -> Self {
+        Self(id)
     }
 
-    fn id(&self) -> &str {
+    fn id(&self) -> &'static str {
         &self.0
     }
 }
 impl Into<Classes> for StyleId {
     fn into(self) -> Classes {
-        classes!(self.id().to_string())
+        classes!(self.id())
     }
 }

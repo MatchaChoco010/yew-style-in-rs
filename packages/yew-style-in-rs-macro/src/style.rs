@@ -2,6 +2,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 
 pub mod css;
+pub mod dyn_css;
 
 mod kw {
     syn::custom_keyword!(filename);
@@ -41,6 +42,10 @@ enum CssDeclaration {
         filename: Option<syn::LitStr>,
         css: css::Css,
     },
+    DynCss {
+        ident: syn::Ident,
+        dyn_css: dyn_css::DynCss,
+    },
 }
 impl syn::parse::Parse for CssDeclaration {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -48,24 +53,32 @@ impl syn::parse::Parse for CssDeclaration {
         let ident: syn::Ident = input.parse()?;
         input.parse::<syn::Token![=]>()?;
 
-        let css_macro: syn::Macro = input.parse()?;
-        let css_macro: CssMacro = css_macro.parse_body()?;
-        let (filename, css) = match css_macro {
-            CssMacro::Filename(filename) => {
-                let filename = Some(filename.filename);
-                let css;
-                syn::braced!(css in input);
-                let css: css::Css = css.parse()?;
-                (filename, css)
-            }
-            CssMacro::CssMacro(css) => (None, css),
-        };
-        input.parse::<syn::Token![;]>()?;
-        Ok(Self::Css {
-            ident,
-            filename,
-            css,
-        })
+        if input.peek(syn::Token![dyn]) {
+            input.parse::<syn::Token![dyn]>()?;
+            let dyn_css_macro: syn::Macro = input.parse()?;
+            let dyn_css: dyn_css::DynCss = dyn_css_macro.parse_body()?;
+            input.parse::<syn::Token![;]>()?;
+            Ok(Self::DynCss { ident, dyn_css })
+        } else {
+            let css_macro: syn::Macro = input.parse()?;
+            let css_macro: CssMacro = css_macro.parse_body()?;
+            let (filename, css) = match css_macro {
+                CssMacro::Filename(filename) => {
+                    let filename = Some(filename.filename);
+                    let css;
+                    syn::braced!(css in input);
+                    let css: css::Css = css.parse()?;
+                    (filename, css)
+                }
+                CssMacro::CssMacro(css) => (None, css),
+            };
+            input.parse::<syn::Token![;]>()?;
+            Ok(Self::Css {
+                ident,
+                filename,
+                css,
+            })
+        }
     }
 }
 impl ToTokens for CssDeclaration {
@@ -76,8 +89,12 @@ impl ToTokens for CssDeclaration {
                 filename,
                 css,
             } => {
-                let css = css.expand(filename);
+                let css = css.clone().expand(filename);
                 tokens.append_all(quote! (let #ident = #css;))
+            }
+            Self::DynCss { ident, dyn_css } => {
+                let dyn_css = dyn_css.expand();
+                tokens.append_all(quote!(let #ident = #dyn_css;))
             }
         }
     }

@@ -5,7 +5,7 @@ use crate::ast::*;
 
 pub enum ParseError<T> {
     Fatal,
-    Ignorable(T),
+    Ignorable(T, String),
 }
 
 #[derive(Clone, Debug)]
@@ -137,30 +137,29 @@ impl<'a> Cursor<'a> {
             if delimiter == '{' {
                 self.take('{').ok_or(ParseError::Fatal)?;
 
-                let mut is_err = false;
-                let block = match self.parse_declaration_list() {
-                    Ok(declarations) => declarations,
-                    Err(ParseError::Fatal) => return Err(ParseError::Fatal),
-                    Err(ParseError::Ignorable(declarations)) => {
-                        is_err = true;
-                        declarations
+                match self.parse_declaration_list() {
+                    Ok(declarations) => {
+                        self.skip_white_space();
+                        self.take('}').ok_or(ParseError::Fatal)?;
+                        Ok(AtRule {
+                            rule_name,
+                            rule_value,
+                            block: Some(declarations),
+                        })
                     }
-                };
-                self.skip_white_space();
-                self.take('}').ok_or(ParseError::Fatal)?;
-
-                if is_err {
-                    Err(ParseError::Ignorable(AtRule {
-                        rule_name,
-                        rule_value,
-                        block: Some(block),
-                    }))
-                } else {
-                    Ok(AtRule {
-                        rule_name,
-                        rule_value,
-                        block: Some(block),
-                    })
+                    Err(ParseError::Fatal) => return Err(ParseError::Fatal),
+                    Err(ParseError::Ignorable(declarations, msg)) => {
+                        self.skip_white_space();
+                        self.take('}').ok_or(ParseError::Fatal)?;
+                        Err(ParseError::Ignorable(
+                            AtRule {
+                                rule_name,
+                                rule_value,
+                                block: Some(declarations),
+                            },
+                            msg,
+                        ))
+                    }
                 }
             } else {
                 self.take(';').ok_or(ParseError::Fatal)?;
@@ -179,21 +178,27 @@ impl<'a> Cursor<'a> {
         self.skip_white_space();
         let selectors = self.parse_selectors().ok_or(ParseError::Fatal)?;
         self.take('{').ok_or(ParseError::Fatal)?;
-        let mut is_err = false;
-        let block = match self.parse_declaration_list() {
-            Ok(declarations) => declarations,
-            Err(ParseError::Fatal) => return Err(ParseError::Fatal),
-            Err(ParseError::Ignorable(declarations)) => {
-                is_err = true;
-                declarations
+        match self.parse_declaration_list() {
+            Ok(declarations) => {
+                self.skip_white_space();
+                self.take('}').ok_or(ParseError::Fatal)?;
+                Ok(QualifiedRule {
+                    selectors,
+                    block: declarations,
+                })
             }
-        };
-        self.skip_white_space();
-        self.take('}').ok_or(ParseError::Fatal)?;
-        if is_err {
-            Err(ParseError::Ignorable(QualifiedRule { selectors, block }))
-        } else {
-            Ok(QualifiedRule { selectors, block })
+            Err(ParseError::Fatal) => return Err(ParseError::Fatal),
+            Err(ParseError::Ignorable(declarations, msg)) => {
+                self.skip_white_space();
+                self.take('}').ok_or(ParseError::Fatal)?;
+                Err(ParseError::Ignorable(
+                    QualifiedRule {
+                        selectors,
+                        block: declarations,
+                    },
+                    msg,
+                ))
+            }
         }
     }
 
@@ -226,37 +231,64 @@ impl<'a> Cursor<'a> {
     ) -> Result<Vec<Declaration>, ParseError<Vec<Declaration>>> {
         let mut declarations = vec![];
         let mut is_err = false;
+        let mut is_nesting = false;
+        let mut err_msg = String::new();
         loop {
             self.skip_white_space();
             if self.is_empty() || self.peek('}') {
                 if is_err {
-                    return Err(ParseError::Ignorable(declarations));
+                    return Err(ParseError::Ignorable(declarations, err_msg));
                 } else {
                     return Ok(declarations);
                 }
             } else if self.peek('@') {
                 match self.parse_at_rule() {
                     Ok(at_rule) => declarations.push(Declaration::AtRule(at_rule)),
-                    Err(ParseError::Fatal) => return Err(ParseError::Ignorable(declarations)),
-                    Err(ParseError::Ignorable(at_rule)) => {
+                    Err(ParseError::Fatal) => {
+                        return Err(ParseError::Ignorable(
+                            declarations,
+                            "[CSS parse error] at-rule parse error".into(),
+                        ))
+                    }
+                    Err(ParseError::Ignorable(at_rule, msg)) => {
                         is_err = true;
+                        err_msg = msg;
                         declarations.push(Declaration::AtRule(at_rule));
                     }
                 }
+                is_nesting = true;
             } else if self.peek('&') {
                 match self.parse_qualified_rule() {
                     Ok(rule) => declarations.push(Declaration::QualifiedRule(rule)),
-                    Err(ParseError::Fatal) => return Err(ParseError::Ignorable(declarations)),
-                    Err(ParseError::Ignorable(rule)) => {
+                    Err(ParseError::Fatal) => {
+                        return Err(ParseError::Ignorable(
+                            declarations,
+                            "[CSS parse error] qualified rule parse error".into(),
+                        ))
+                    }
+                    Err(ParseError::Ignorable(rule, msg)) => {
                         is_err = true;
+                        err_msg = msg;
                         declarations.push(Declaration::QualifiedRule(rule));
                     }
                 }
+                is_nesting = true;
             } else {
-                if let Some(property) = self.parse_property() {
-                    declarations.push(Declaration::Property(property));
+                // property after nesting is ignored
+                if is_nesting {
+                    return Err(ParseError::Ignorable(
+                        declarations,
+                        "[CSS parse error] property after nesting is invalid and ignored".into(),
+                    ));
                 } else {
-                    return Err(ParseError::Ignorable(declarations));
+                    if let Some(property) = self.parse_property() {
+                        declarations.push(Declaration::Property(property));
+                    } else {
+                        return Err(ParseError::Ignorable(
+                            declarations,
+                            "[CSS parse error] property declaration is expected".into(),
+                        ));
+                    }
                 }
             }
         }

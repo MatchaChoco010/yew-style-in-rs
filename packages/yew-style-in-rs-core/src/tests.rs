@@ -4,16 +4,15 @@ use super::transpiler::*;
 #[test]
 fn test_runtime_parse_1() {
     let runtime_css = RuntimeCss::parse(
-        "test",
         r#"
             border: solid 1px black;
         "#,
     )
     .expect("Parse Error!");
 
-    assert!(matches!(runtime_css.0.block[0], Declaration::Property(_)));
+    assert!(matches!(runtime_css.0[0], Declaration::Property(_)));
 
-    if let Declaration::Property(prop) = &runtime_css.0.block[0] {
+    if let Declaration::Property(prop) = &runtime_css.0[0] {
         assert_eq!(prop.property, "border");
         assert_eq!(prop.value, "solid 1px black");
     }
@@ -22,7 +21,6 @@ fn test_runtime_parse_1() {
 #[test]
 fn test_runtime_parse_2() {
     let runtime_css = RuntimeCss::parse(
-        "test",
         r#"
             @media (orientation: landscape) {
                 grid-auto-flow: column
@@ -31,9 +29,9 @@ fn test_runtime_parse_2() {
     )
     .expect("Parse Error!");
 
-    assert!(matches!(runtime_css.0.block[0], Declaration::AtRule(_)));
+    assert!(matches!(runtime_css.0[0], Declaration::AtRule(_)));
 
-    if let Declaration::AtRule(at_rule) = &runtime_css.0.block[0] {
+    if let Declaration::AtRule(at_rule) = &runtime_css.0[0] {
         assert_eq!(at_rule.rule_name, "media");
         assert_eq!(at_rule.rule_value, "(orientation: landscape)");
         assert!(at_rule.block.is_some());
@@ -44,7 +42,7 @@ fn test_runtime_parse_2() {
             Declaration::Property(_)
         ));
 
-        if let Declaration::Property(prop) = &runtime_css.0.block[0] {
+        if let Declaration::Property(prop) = &runtime_css.0[0] {
             assert_eq!(prop.property, "grid-auto-flow");
             assert_eq!(prop.value, "column");
         }
@@ -54,7 +52,6 @@ fn test_runtime_parse_2() {
 #[test]
 fn test_runtime_parse_3() {
     let runtime_css = RuntimeCss::parse(
-        "test",
         r#"
             & .classA, & > .classB {
                 border: solid 1px black;
@@ -64,12 +61,9 @@ fn test_runtime_parse_3() {
     )
     .expect("Parse Error!");
 
-    assert!(matches!(
-        runtime_css.0.block[0],
-        Declaration::QualifiedRule(_)
-    ));
+    assert!(matches!(runtime_css.0[0], Declaration::QualifiedRule(_)));
 
-    if let Declaration::QualifiedRule(rule) = &runtime_css.0.block[0] {
+    if let Declaration::QualifiedRule(rule) = &runtime_css.0[0] {
         assert_eq!(rule.selectors.0.len(), 2);
         assert_eq!(rule.selectors.0[0], "& .classA".to_string());
         assert_eq!(rule.selectors.0[1], "& > .classB".to_string());
@@ -93,7 +87,6 @@ fn test_runtime_parse_3() {
 #[test]
 fn test_runtime_parse_4() {
     let runtime_css = RuntimeCss::parse(
-        "test",
         r#"
             border: solid 1px black;
             @media (orientation: landscape) {
@@ -110,22 +103,19 @@ fn test_runtime_parse_4() {
     )
     .expect("Parse Error!");
 
-    assert_eq!(runtime_css.0.block.len(), 4);
+    assert_eq!(runtime_css.0.len(), 4);
 
-    assert!(matches!(runtime_css.0.block[0], Declaration::Property(_)));
-    assert!(matches!(runtime_css.0.block[1], Declaration::AtRule(_)));
-    assert!(matches!(runtime_css.0.block[2], Declaration::Property(_)));
-    assert!(matches!(
-        runtime_css.0.block[3],
-        Declaration::QualifiedRule(_)
-    ));
+    assert!(matches!(runtime_css.0[0], Declaration::Property(_)));
+    assert!(matches!(runtime_css.0[1], Declaration::AtRule(_)));
+    assert!(matches!(runtime_css.0[2], Declaration::Property(_)));
+    assert!(matches!(runtime_css.0[3], Declaration::QualifiedRule(_)));
 
-    if let Declaration::Property(prop) = &runtime_css.0.block[0] {
+    if let Declaration::Property(prop) = &runtime_css.0[0] {
         assert_eq!(prop.property, "border");
         assert_eq!(prop.value, "solid 1px black");
     }
 
-    if let Declaration::AtRule(at_rule) = &runtime_css.0.block[1] {
+    if let Declaration::AtRule(at_rule) = &runtime_css.0[1] {
         assert_eq!(at_rule.rule_name, "media");
         assert_eq!(at_rule.rule_value, "(orientation: landscape)");
         assert!(at_rule.block.is_some());
@@ -142,12 +132,12 @@ fn test_runtime_parse_4() {
         }
     }
 
-    if let Declaration::Property(prop) = &runtime_css.0.block[2] {
+    if let Declaration::Property(prop) = &runtime_css.0[2] {
         assert_eq!(prop.property, "border");
         assert_eq!(prop.value, "solid 1px black");
     }
 
-    if let Declaration::QualifiedRule(rule) = &runtime_css.0.block[3] {
+    if let Declaration::QualifiedRule(rule) = &runtime_css.0[3] {
         assert_eq!(rule.selectors.0.len(), 1);
         assert_eq!(rule.selectors.0[0], "& .classA".to_string());
 
@@ -179,20 +169,19 @@ fn test_runtime_parse_4() {
 #[test]
 fn test_runtime_parse_5() {
     let runtime_css = RuntimeCss::parse(
-        "test",
         r#"
             border solid 1px black;
         "#,
     )
-    .expect_err("Expected parse error!");
+    .expect_err("Expected parse error!")
+    .0;
 
-    assert_eq!(runtime_css.0.block.len(), 0);
+    assert_eq!(runtime_css.0.len(), 0);
 }
 
 #[test]
 fn test_runtime_parse_6() {
     let runtime_css = RuntimeCss::parse(
-        "test",
         r#"
             &:is(.bar, &.baz) {
                 border: solid 1px black;
@@ -202,12 +191,9 @@ fn test_runtime_parse_6() {
     )
     .expect("Parse Error!");
 
-    assert!(matches!(
-        runtime_css.0.block[0],
-        Declaration::QualifiedRule(_)
-    ));
+    assert!(matches!(runtime_css.0[0], Declaration::QualifiedRule(_)));
 
-    if let Declaration::QualifiedRule(rule) = &runtime_css.0.block[0] {
+    if let Declaration::QualifiedRule(rule) = &runtime_css.0[0] {
         assert_eq!(rule.selectors.0.len(), 1);
         assert_eq!(rule.selectors.0[0], "&:is(.bar, &.baz)".to_string());
 
@@ -230,7 +216,6 @@ fn test_runtime_parse_6() {
 #[test]
 fn test_runtime_parse_7() {
     let runtime_css = RuntimeCss::parse(
-        "test",
         r#"
             &:is(.bar, &.baz) {
                 border: solid 1px black;
@@ -238,14 +223,12 @@ fn test_runtime_parse_7() {
             }
         "#,
     )
-    .expect_err("Expected parse error");
+    .expect_err("Expected parse error")
+    .0;
 
-    assert!(matches!(
-        runtime_css.0.block[0],
-        Declaration::QualifiedRule(_)
-    ));
+    assert!(matches!(runtime_css.0[0], Declaration::QualifiedRule(_)));
 
-    if let Declaration::QualifiedRule(rule) = &runtime_css.0.block[0] {
+    if let Declaration::QualifiedRule(rule) = &runtime_css.0[0] {
         assert_eq!(rule.selectors.0.len(), 1);
         assert_eq!(rule.selectors.0[0], "&:is(.bar, &.baz)".to_string());
 
@@ -265,24 +248,21 @@ fn test_transpile_1() {
     //   color: blue;
     //   & > .bar { color: red; }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "color".into(),
+            value: "blue".into(),
+        }),
+        Declaration::QualifiedRule(QualifiedRule {
+            selectors: Selectors(vec!["& > .bar".into()]),
+            block: vec![Declaration::Property(Property {
                 property: "color".into(),
-                value: "blue".into(),
-            }),
-            Declaration::QualifiedRule(QualifiedRule {
-                selectors: Selectors(vec!["& > .bar".into()]),
-                block: vec![Declaration::Property(Property {
-                    property: "color".into(),
-                    value: "red".into(),
-                })],
-            }),
-        ],
-    });
+                value: "red".into(),
+            })],
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo { color: blue; }
     // .foo > .bar { color: red; }
@@ -312,24 +292,21 @@ fn test_transpile_2() {
     //   color: blue;
     //   &.bar { color: red; }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "color".into(),
+            value: "blue".into(),
+        }),
+        Declaration::QualifiedRule(QualifiedRule {
+            selectors: Selectors(vec!["&.bar".into()]),
+            block: vec![Declaration::Property(Property {
                 property: "color".into(),
-                value: "blue".into(),
-            }),
-            Declaration::QualifiedRule(QualifiedRule {
-                selectors: Selectors(vec!["&.bar".into()]),
-                block: vec![Declaration::Property(Property {
-                    property: "color".into(),
-                    value: "red".into(),
-                })],
-            }),
-        ],
-    });
+                value: "red".into(),
+            })],
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo { color: blue; }
     // .foo.bar { color: red; }
@@ -359,24 +336,21 @@ fn test_transpile_3() {
     //   color: blue;
     //   & + .baz, &.qux { color: red; }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into(), ".bar".into()]),
-        block: vec![
-            Declaration::Property(Property {
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "color".into(),
+            value: "blue".into(),
+        }),
+        Declaration::QualifiedRule(QualifiedRule {
+            selectors: Selectors(vec!["& + .baz".into(), "&.qux".into()]),
+            block: vec![Declaration::Property(Property {
                 property: "color".into(),
-                value: "blue".into(),
-            }),
-            Declaration::QualifiedRule(QualifiedRule {
-                selectors: Selectors(vec!["& + .baz".into(), "&.qux".into()]),
-                block: vec![Declaration::Property(Property {
-                    property: "color".into(),
-                    value: "red".into(),
-                })],
-            }),
-        ],
-    });
+                value: "red".into(),
+            })],
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo", ".bar"], runtime_css);
 
     // .foo, .bar { color: blue; }
     // :is(.foo, .bar) + .baz,
@@ -410,24 +384,21 @@ fn test_transpile_4() {
     //   color: blue;
     //   & .bar & .baz & .qux { color: red; }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "color".into(),
+            value: "blue".into(),
+        }),
+        Declaration::QualifiedRule(QualifiedRule {
+            selectors: Selectors(vec!["& .bar & .baz & .qux".into()]),
+            block: vec![Declaration::Property(Property {
                 property: "color".into(),
-                value: "blue".into(),
-            }),
-            Declaration::QualifiedRule(QualifiedRule {
-                selectors: Selectors(vec!["& .bar & .baz & .qux".into()]),
-                block: vec![Declaration::Property(Property {
-                    property: "color".into(),
-                    value: "red".into(),
-                })],
-            }),
-        ],
-    });
+                value: "red".into(),
+            })],
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo { color: blue; }
     // .foo .bar .foo .baz .foo .qux { color: red; }
@@ -457,24 +428,21 @@ fn test_transpile_5() {
     //   color: blue;
     //   & { padding: 2ch; }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
-                property: "color".into(),
-                value: "blue".into(),
-            }),
-            Declaration::QualifiedRule(QualifiedRule {
-                selectors: Selectors(vec!["&".into()]),
-                block: vec![Declaration::Property(Property {
-                    property: "padding".into(),
-                    value: "2ch".into(),
-                })],
-            }),
-        ],
-    });
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "color".into(),
+            value: "blue".into(),
+        }),
+        Declaration::QualifiedRule(QualifiedRule {
+            selectors: Selectors(vec!["&".into()]),
+            block: vec![Declaration::Property(Property {
+                property: "padding".into(),
+                value: "2ch".into(),
+            })],
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo {
     //   color: blue;
@@ -503,24 +471,21 @@ fn test_transpile_6() {
     //   color: blue;
     //   && { padding: 2ch; }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
-                property: "color".into(),
-                value: "blue".into(),
-            }),
-            Declaration::QualifiedRule(QualifiedRule {
-                selectors: Selectors(vec!["&&".into()]),
-                block: vec![Declaration::Property(Property {
-                    property: "padding".into(),
-                    value: "2ch".into(),
-                })],
-            }),
-        ],
-    });
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "color".into(),
+            value: "blue".into(),
+        }),
+        Declaration::QualifiedRule(QualifiedRule {
+            selectors: Selectors(vec!["&&".into()]),
+            block: vec![Declaration::Property(Property {
+                property: "padding".into(),
+                value: "2ch".into(),
+            })],
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo { color: blue; }
     // .foo.foo { padding: 2ch; }
@@ -549,18 +514,15 @@ fn test_transpile_7() {
     // .error, #404 {
     //   &:hover > .baz { color: red; }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".error".into(), "#404".into()]),
-        block: vec![Declaration::QualifiedRule(QualifiedRule {
-            selectors: Selectors(vec!["&:hover > .baz".into()]),
-            block: vec![Declaration::Property(Property {
-                property: "color".into(),
-                value: "red".into(),
-            })],
+    let runtime_css = RuntimeCss(vec![Declaration::QualifiedRule(QualifiedRule {
+        selectors: Selectors(vec!["&:hover > .baz".into()]),
+        block: vec![Declaration::Property(Property {
+            property: "color".into(),
+            value: "red".into(),
         })],
-    });
+    })]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".error", "#404"], runtime_css);
 
     // :is(.error, #404):hover > .baz { color: red; }
     let expected_css = TranspiledCss(vec![Rule::QualifiedRule(QualifiedRule {
@@ -579,18 +541,15 @@ fn test_transpile_8() {
     // .foo {
     //   &:is(.bar, &.baz) { color: red; }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![Declaration::QualifiedRule(QualifiedRule {
-            selectors: Selectors(vec!["&:is(.bar, &.baz)".into()]),
-            block: vec![Declaration::Property(Property {
-                property: "color".into(),
-                value: "red".into(),
-            })],
+    let runtime_css = RuntimeCss(vec![Declaration::QualifiedRule(QualifiedRule {
+        selectors: Selectors(vec!["&:is(.bar, &.baz)".into()]),
+        block: vec![Declaration::Property(Property {
+            property: "color".into(),
+            value: "red".into(),
         })],
-    });
+    })]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo:is(.bar, .foo.baz) { color: red; }
     let expected_css = TranspiledCss(vec![Rule::QualifiedRule(QualifiedRule {
@@ -615,33 +574,30 @@ fn test_transpile_9() {
     //     }
     //   }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec!["figure".into()]),
-        block: vec![
-            Declaration::Property(Property {
-                property: "margin".into(),
-                value: "0".into(),
-            }),
-            Declaration::QualifiedRule(QualifiedRule {
-                selectors: Selectors(vec!["& > figcaption".into()]),
-                block: vec![
-                    Declaration::Property(Property {
-                        property: "background".into(),
-                        value: "hsl(0 0% 0% / 50%)".into(),
-                    }),
-                    Declaration::QualifiedRule(QualifiedRule {
-                        selectors: Selectors(vec!["& > p".into()]),
-                        block: vec![Declaration::Property(Property {
-                            property: "font-size".into(),
-                            value: ".9rem".into(),
-                        })],
-                    }),
-                ],
-            }),
-        ],
-    });
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "margin".into(),
+            value: "0".into(),
+        }),
+        Declaration::QualifiedRule(QualifiedRule {
+            selectors: Selectors(vec!["& > figcaption".into()]),
+            block: vec![
+                Declaration::Property(Property {
+                    property: "background".into(),
+                    value: "hsl(0 0% 0% / 50%)".into(),
+                }),
+                Declaration::QualifiedRule(QualifiedRule {
+                    selectors: Selectors(vec!["& > p".into()]),
+                    block: vec![Declaration::Property(Property {
+                        property: "font-size".into(),
+                        value: ".9rem".into(),
+                    })],
+                }),
+            ],
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&["figure"], runtime_css);
 
     // figure { margin: 0; }
     // figure > figcaption { background: hsl(0 0% 0% / 50%); }
@@ -681,25 +637,22 @@ fn test_transpile_10() {
     //     color: blue;
     //   }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "color".into(),
+            value: "red".into(),
+        }),
+        Declaration::AtRule(AtRule {
+            rule_name: "nest".into(),
+            rule_value: "& > .bar".into(),
+            block: Some(vec![Declaration::Property(Property {
                 property: "color".into(),
-                value: "red".into(),
-            }),
-            Declaration::AtRule(AtRule {
-                rule_name: "nest".into(),
-                rule_value: "& > .bar".into(),
-                block: Some(vec![Declaration::Property(Property {
-                    property: "color".into(),
-                    value: "blue".into(),
-                })]),
-            }),
-        ],
-    });
+                value: "blue".into(),
+            })]),
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo { color: red; }
     // .foo > .bar { color: blue; }
@@ -731,25 +684,22 @@ fn test_transpile_11() {
     //     color: blue;
     //   }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "color".into(),
+            value: "red".into(),
+        }),
+        Declaration::AtRule(AtRule {
+            rule_name: "nest".into(),
+            rule_value: ".parent &".into(),
+            block: Some(vec![Declaration::Property(Property {
                 property: "color".into(),
-                value: "red".into(),
-            }),
-            Declaration::AtRule(AtRule {
-                rule_name: "nest".into(),
-                rule_value: ".parent &".into(),
-                block: Some(vec![Declaration::Property(Property {
-                    property: "color".into(),
-                    value: "blue".into(),
-                })]),
-            }),
-        ],
-    });
+                value: "blue".into(),
+            })]),
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo { color: red; }
     // .parent .foo { color: blue; }
@@ -781,25 +731,22 @@ fn test_transpile_12() {
     //     color: blue;
     //   }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "color".into(),
+            value: "red".into(),
+        }),
+        Declaration::AtRule(AtRule {
+            rule_name: "nest".into(),
+            rule_value: ":not(&)".into(),
+            block: Some(vec![Declaration::Property(Property {
                 property: "color".into(),
-                value: "red".into(),
-            }),
-            Declaration::AtRule(AtRule {
-                rule_name: "nest".into(),
-                rule_value: ":not(&)".into(),
-                block: Some(vec![Declaration::Property(Property {
-                    property: "color".into(),
-                    value: "blue".into(),
-                })]),
-            }),
-        ],
-    });
+                value: "blue".into(),
+            })]),
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo { color: red; }
     // :not(.foo) { color: blue; }
@@ -834,34 +781,31 @@ fn test_transpile_13() {
     //     }
     //   }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
-                property: "color".into(),
-                value: "blue".into(),
-            }),
-            Declaration::AtRule(AtRule {
-                rule_name: "nest".into(),
-                rule_value: ".bar &".into(),
-                block: Some(vec![
-                    Declaration::Property(Property {
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "color".into(),
+            value: "blue".into(),
+        }),
+        Declaration::AtRule(AtRule {
+            rule_name: "nest".into(),
+            rule_value: ".bar &".into(),
+            block: Some(vec![
+                Declaration::Property(Property {
+                    property: "color".into(),
+                    value: "red".into(),
+                }),
+                Declaration::QualifiedRule(QualifiedRule {
+                    selectors: Selectors(vec!["&.baz".into()]),
+                    block: vec![Declaration::Property(Property {
                         property: "color".into(),
-                        value: "red".into(),
-                    }),
-                    Declaration::QualifiedRule(QualifiedRule {
-                        selectors: Selectors(vec!["&.baz".into()]),
-                        block: vec![Declaration::Property(Property {
-                            property: "color".into(),
-                            value: "green".into(),
-                        })],
-                    }),
-                ]),
-            }),
-        ],
-    });
+                        value: "green".into(),
+                    })],
+                }),
+            ]),
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo { color: blue; }
     // .bar .foo { color: red; }
@@ -901,25 +845,22 @@ fn test_transpile_14() {
     //     grid-auto-flow: column;
     //   }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
-                property: "display".into(),
-                value: "grid".into(),
-            }),
-            Declaration::AtRule(AtRule {
-                rule_name: "media".into(),
-                rule_value: "(orientation: landscape)".into(),
-                block: Some(vec![Declaration::Property(Property {
-                    property: "grid-auto-flow".into(),
-                    value: "column".into(),
-                })]),
-            }),
-        ],
-    });
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "display".into(),
+            value: "grid".into(),
+        }),
+        Declaration::AtRule(AtRule {
+            rule_name: "media".into(),
+            rule_value: "(orientation: landscape)".into(),
+            block: Some(vec![Declaration::Property(Property {
+                property: "grid-auto-flow".into(),
+                value: "column".into(),
+            })]),
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo { display: grid; }
     // @media (orientation: landscape) {
@@ -962,35 +903,32 @@ fn test_transpile_15() {
     //     }
     //   }
     // }
-    let runtime_css = RuntimeCss(QualifiedRule {
-        selectors: Selectors(vec![".foo".into()]),
-        block: vec![
-            Declaration::Property(Property {
-                property: "display".into(),
-                value: "grid".into(),
-            }),
-            Declaration::AtRule(AtRule {
-                rule_name: "media".into(),
-                rule_value: "(orientation: landscape)".into(),
-                block: Some(vec![
-                    Declaration::Property(Property {
-                        property: "grid-auto-flow".into(),
-                        value: "column".into(),
-                    }),
-                    Declaration::AtRule(AtRule {
-                        rule_name: "media".into(),
-                        rule_value: "(min-width > 1024px)".into(),
-                        block: Some(vec![Declaration::Property(Property {
-                            property: "max-inline-size".into(),
-                            value: "1024px".into(),
-                        })]),
-                    }),
-                ]),
-            }),
-        ],
-    });
+    let runtime_css = RuntimeCss(vec![
+        Declaration::Property(Property {
+            property: "display".into(),
+            value: "grid".into(),
+        }),
+        Declaration::AtRule(AtRule {
+            rule_name: "media".into(),
+            rule_value: "(orientation: landscape)".into(),
+            block: Some(vec![
+                Declaration::Property(Property {
+                    property: "grid-auto-flow".into(),
+                    value: "column".into(),
+                }),
+                Declaration::AtRule(AtRule {
+                    rule_name: "media".into(),
+                    rule_value: "(min-width > 1024px)".into(),
+                    block: Some(vec![Declaration::Property(Property {
+                        property: "max-inline-size".into(),
+                        value: "1024px".into(),
+                    })]),
+                }),
+            ]),
+        }),
+    ]);
 
-    let transpiled_css = TranspiledCss::transpile(runtime_css);
+    let transpiled_css = TranspiledCss::transpile(&[".foo"], runtime_css);
 
     // .foo { display: grid; }
     // @media (orientation: landscape) {
