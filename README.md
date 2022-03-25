@@ -11,11 +11,16 @@ $ cd example/my-app
 $ trunk serve --release
 ```
 
-Note: `example/my-app/Trunk.toml` needs to be rewritten for non-Windows.
+Note: `example/my-app/Trunk.toml` needs to be rewritten for non-Windows because relay on windows `copy` cmd.
 
 ## Usage
 
-### `css!` macro
+### `style!` macro
+
+`css!` declaration generates scoped css at compile time.
+`style.css` will be generated in the build directory at compile time.
+
+#### `css!` declaration
 
 `css!` macro generates scoped css at compile time.
 
@@ -23,25 +28,25 @@ Note: `example/my-app/Trunk.toml` needs to be rewritten for non-Windows.
 use yew::prelude::*;
 use yew_style_in_rs::*;
 
-#[function_component(MyComponentB)]
-pub fn my_component_b() -> Html {
-    let css = css!(
-        "
-    border: solid green 1px;
-    width: 100%;
-    height: 150px;
-    text-align: center;
-    box-sizing: border-box;
+#[function_component(MyComponent)]
+pub fn my_component() -> Html {
+    style! {
+        // You can use CSS Nesting
+        let css = css! {r#"
+            border: solid green 1px;
+            width: 100%;
+            height: 150px;
+            text-align: center;
+            box-sizing: border-box;
 
-    & > p {
-        background: white;
+            & > p {
+                background: white;
+            }
+        "#};
     }
-    "
-    );
-
     html! {
-        <div class={css}>
-            <p>{"compile time static css!"}</p>
+        <div class={classes!(css)}>
+            <p>{"compile time static css"}</p>
         </div>
     }
 }
@@ -72,26 +77,30 @@ Note that CSS Nesting can be used.
 use yew::prelude::*;
 use yew_style_in_rs::*;
 
-#[function_component(MyComponentB)]
-pub fn my_component_b() -> Html {
-    let important_css = css!("important", "background: red;");
-    let css = css!(
-        "
-    border: solid green 1px;
-    width: 100%;
-    height: 150px;
-    text-align: center;
-    box-sizing: border-box;
+#[function_component(MyComponent)]
+pub fn my_component() -> Html {
+    style! {
+        // You can pass filename
+        let important_css = css!(filename = "important") {r#"
+            background: red;
+            color: #000033;
+        "#};
+        // You can use CSS Nesting
+        let css = css! {r#"
+            border: solid green 1px;
+            width: 100%;
+            height: 150px;
+            text-align: center;
+            box-sizing: border-box;
 
-    & > p {
-        background: white;
+            & > p {
+                background: white;
+            }
+        "#};
     }
-    "
-    );
-
     html! {
         <div class={classes!(important_css, css)}>
-            <p>{"compile time static css!"}</p>
+            <p>{"compile time static css"}</p>
         </div>
     }
 }
@@ -99,7 +108,7 @@ pub fn my_component_b() -> Html {
 
 The above code generates `style.css` and `important.css`.
 
-You can load `important.css` synchronously and `style.css` asynchronously as follows iin html file.
+You can load `important.css` synchronously and `style.css` asynchronously as follows in html file.
 
 ```html
 <!DOCTYPE html>
@@ -117,19 +126,19 @@ You can load `important.css` synchronously and `style.css` asynchronously as fol
 </html>
 ```
 
-The `css!` macro only accepts string literals. Only strings determined at compile time are accepted.
-If you want to change the style at runtime, use the following `dynamic_css!` macro.
+The `css!` declaration can be only static because of compile time CSS generation.
+If you want to change the style at runtime, use the following `dyn css!` declaration.
 
-### `dynamic_css!` macro
+#### `dyn css!` declaration
 
-`dynamic_css!` macro generates scoped css at runtime.
+`dyn css!` declaration generates scoped css at runtime.
 
 ```rust
 use yew::prelude::*;
 use yew_style_in_rs::*;
 
-#[function_component(MyComponentA)]
-pub fn my_component_a() -> Html {
+#[function_component(MyComponent)]
+pub fn my_component() -> Html {
     let background_state = use_state(|| "pink");
     let background = *background_state;
     let box_shadow_state = use_state(|| "#ffffff");
@@ -148,15 +157,15 @@ pub fn my_component_a() -> Html {
         }
     });
 
-    let dynamic_css = dynamic_css!(format!(
-        "background: {background};
+    style! {
+        let dynamic_css = dyn css! {r#"
+            background: ${background};
 
-        & > p {{
-            box-shadow: 0 0 10px {box_shadow};
-        }}
-        "
-    ));
-
+            & > p {
+                box-shadow: 0 0 10px ${box_shadow};
+            }
+        "#};
+    }
     html! {
         <div class={classes!(css, dynamic_css)} {onclick}>
             <p>{"Click Me"}</p>
@@ -166,15 +175,15 @@ pub fn my_component_a() -> Html {
 }
 ```
 
-The above code generates the following style elements and insert into the head of the html.
+The above code generates a following style html element and insert into the head of the html.
 
 ```html
 <style data-style="dynamic-AbCdEfGh">
-  .AbCdEfGh {
+  .dynamic-AbCdEfGh {
     background: pink;
   }
 
-  .AbCdEfGh > p {
+  .dynamic-AbCdEfGh > p {
     box-shadow: 0 0 10px #ffffff;
   }
 </style>
@@ -182,3 +191,58 @@ The above code generates the following style elements and insert into the head o
 
 `AbCdEfGh` is a random 8-letter alphabet.
 Note that CSS Nesting can be used.
+
+You can use both `css!` declaration and `dyn css!` declaration in one `style!` macro.
+
+```rust
+use yew::prelude::*;
+use yew_style_in_rs::*;
+
+#[function_component(MyComponent)]
+pub fn my_component() -> Html {
+    let background_state = use_state(|| "pink");
+    let background = *background_state;
+    let box_shadow_state = use_state(|| "#ffffff");
+    let box_shadow = *box_shadow_state;
+
+    let onclick = Callback::from({
+        let background_state = background_state.clone();
+        move |_| {
+            if *background_state == "pink" {
+                background_state.set("cyan");
+                box_shadow_state.set("#101010");
+            } else {
+                background_state.set("pink");
+                box_shadow_state.set("#ffffff");
+            }
+        }
+    });
+
+    style! {
+        let css = css!{r#"
+            border: solid 1px black;
+            width: 100%;
+            height: 150px;
+            text-align: center;
+            box-sizing: border-box;
+
+            &:hover {
+                border: solid 10px black;
+            }
+        "#};
+        let dynamic_css = dyn css! {r#"
+            background: ${background};
+
+            & > p {
+                box-shadow: 0 0 10px ${box_shadow};
+            }
+        "#};
+    }
+    html! {
+        <div class={classes!(css, dynamic_css)} {onclick}>
+            <p>{"Click Me"}</p>
+            <p>{"dynamic css"}</p>
+        </div>
+    }
+}
+```
