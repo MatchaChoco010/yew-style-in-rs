@@ -321,7 +321,9 @@ fn declaration_to_style_string(declaration: Declaration) -> String {
             String::new() + &property.property + ":" + &property.value + ";"
         }
     }
-} // --- Transpiled Css ---
+}
+
+// --- Transpiled Css ---
 
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct TranspiledCss(pub Vec<Rule>);

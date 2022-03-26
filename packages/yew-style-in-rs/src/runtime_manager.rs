@@ -11,6 +11,12 @@ struct StyleManagerInner {
     managed_ids: HashMap<String, StyleContent>,
 }
 
+// StyleManager is intended to be used as a singleton.
+// Singleton instances are accessed via `default()`.
+//
+// In register, the same random id is generated for strings of
+// the same code and a common style element is used.
+// In unregister, the style element is deleted when the last style of the same code disappears.
 #[derive(Clone)]
 pub struct StyleManager {
     inner: Rc<RefCell<StyleManagerInner>>,

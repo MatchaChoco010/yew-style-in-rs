@@ -1,11 +1,13 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::io::Write;
-
-use crate::state::*;
 use yew_style_in_rs_core::ast::RuntimeCss;
 use yew_style_in_rs_core::transpiler::TranspiledCss;
 
+use crate::state::*;
+
+// Parse declaration when `parse()`.
+// Transpile CSS nesting and write CSS fragment when `expand()`.
 #[derive(Clone)]
 pub struct Css {
     css: RuntimeCss,
