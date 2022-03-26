@@ -1,3 +1,30 @@
+// The proc macro is executed for each crate.
+// If the dependent crate and your own crate use yew-style-in-rs,
+// the following process is executed twice,
+// once for the dependent crate and once for your own crate.
+//
+// After outputting CSS fragments from each of the `style!` crates into files,
+// in order to combine the contents of the `css!` declarations in the `style!`
+// into a single `style.css` file, the files are finally combined into a single file.
+// To make sure that the eight random characters for scope in the `css!` declaration
+// in `style!` do not overlap, we use file locking to control exclusivity
+// while using the names of the files to check the names that are already there.
+// These files survive beyond the proc macro process that is run on a per-crate basis.
+//
+// The process of writing out the CSS fragments to a file and then combining them
+// into a single `style.css` must be performed after the CSS fragments have been written out.
+// By using the process that is performed when the `STATE` singleton is destroyed in proc macro,
+// we can ensure that it is also executed at the end.
+// In Rust, Drop is not called on destruction of static objects,
+// so we explicitly specify atexit in libc.
+//
+// In order to avoid unnecessary styles from being mixed in when dependent crates are removed,
+// when style.css is generated at the end, it is compared with the list of dependent crates
+// and unneeded CSS fragments are removed.
+
+use anyhow::Result;
+use fslock::LockFile;
+use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -6,10 +33,9 @@ use std::iter::repeat_with;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use anyhow::Result;
-use fslock::LockFile;
-use once_cell::sync::Lazy;
-
+// It is a singleton inherent in the proc macro process.
+// The timing of when this STATE is destroyed is monitored and
+// the final generation process is executed at the end of the proc macro.
 pub static STATE: Lazy<Mutex<State>> = Lazy::new(|| {
     Mutex::new(State::new().expect("Failed to create state of yew-style-in-rs-macro"))
 });
@@ -21,7 +47,13 @@ pub struct State {
     lockfile: LockFile,
 }
 impl State {
+    // Create `target/release/build-yew-style-in-rs/` directory,
+    // and create `target/release/build-yew-style-in-rs/<CRATE NAME>/`,
+    // and clean `target/release/build-yew-style-in-rs/<CRATE NAME>/`,
+    // and create `target/release/build-yew-style-in-rs/lockfile`.
     fn new() -> Result<Self> {
+        // Rust does not execute drop traits for static elements,
+        // so we explicitly register a libc atexit.
         extern "C" fn dropper() {
             let mut state = STATE.lock().unwrap();
             state.generate_css();
@@ -59,6 +91,8 @@ impl State {
         })
     }
 
+    // Check `target/release/build-yew-style-in-rs/<CRATE NAME>/<RANDOM 8 CHARACTER>`
+    // is exists or not for every exist <CRATE NAME> directories,
     fn exists_id(&self, id: &str) -> bool {
         fs::read_dir(&self.build_path)
             .expect("build yew-style-in-rs dir is not exists")
@@ -81,6 +115,8 @@ impl State {
             .any(|path| path == id)
     }
 
+    // Create `target/release/build-yew-style-in-rs/<CRATE NAME>/<RANDOM 8 CHARACTER>`
+    // for new <RANDOM 8 CHARACTER>.
     pub fn create_random_id_file(&mut self) -> Result<(String, fs::File)> {
         self.lockfile.lock()?;
 
@@ -100,6 +136,10 @@ impl State {
         Ok((id, file))
     }
 
+    // Remove CSS fragments related to deleted crate,
+    // and remove output style.css and other css,
+    // and write CSS fragments into files.
+    // CSS fragments first line is filename for output css file.
     fn generate_css(&mut self) {
         // Removing CSS files from a deleted package
         let packages = crate::util::get_cargo_packages();

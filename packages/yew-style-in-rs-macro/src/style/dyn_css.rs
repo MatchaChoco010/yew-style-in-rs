@@ -3,6 +3,7 @@ use quote::{quote, TokenStreamExt};
 use std::iter::Peekable;
 use std::str::Chars;
 
+// Parser for `${<ident>}` in code.
 #[derive(Clone, Debug)]
 pub struct Cursor<'a> {
     content: Peekable<Chars<'a>>,
@@ -65,6 +66,11 @@ impl<'a> Cursor<'a> {
     }
 }
 
+// When `parse()`, inspect code and replace `{` with `{{`, `}` with `}}`, `${ident}` with `{ident}`
+// and collect idents to use when expanding macro.
+// When `expand()`, generate code with idents using `format!` macro
+// and using `use_effect_with_deps` to register/unregister runtime manager
+// when code is change or destroy this element.
 pub struct DynCss {
     code: syn::LitStr,
     idents: Vec<syn::Ident>,
@@ -87,6 +93,7 @@ impl DynCss {
 
             let code = format!(#code, #dependencies);
 
+            // Unregister previous style and register new style when code is changed.
             ::yew::use_effect_with_deps(
                 {
                     let style_state = style_state.clone();
@@ -103,6 +110,8 @@ impl DynCss {
                 },
                 code
             );
+
+            // Unregister style when destroy elements.
             ::yew::use_effect_with_deps(
                 {
                     let style_state = style_state.clone();
@@ -118,6 +127,9 @@ impl DynCss {
                 },
                 ()
             );
+
+            // return `dyn_css::StyleId` of current style.
+            // If no style, return empty `StyleId`
             (*style_state).as_ref().map_or_else(|| ::yew_style_in_rs::dyn_css::StyleId::new(""), |s| s.style_id())
         }}
     }

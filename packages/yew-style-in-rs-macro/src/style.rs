@@ -10,6 +10,10 @@ mod kw {
 
 // --- CSS Declaration ---
 
+// Parse filename setting.
+//
+// eg)
+// filename = "filename"
 struct Filename {
     filename: syn::LitStr,
 }
@@ -22,6 +26,13 @@ impl syn::parse::Parse for Filename {
     }
 }
 
+// Parse css! macro declaration.
+//
+// eg)
+// css!(filename = "filename")
+//
+// eg)
+// css! {" some style... "}
 enum CssMacro {
     Filename(Filename),
     CssMacro(css::Css),
@@ -36,6 +47,16 @@ impl syn::parse::Parse for CssMacro {
     }
 }
 
+// Parse CSS declaration both dyn or static.
+//
+// eg)
+// let <ident> = css! {" some style... "};
+//
+// eg)
+// let <ident> = css!(filename = "filename") {" some style... "};
+//
+// eg)
+// let <ident> = dyn css! {" some style... "};
 enum CssDeclaration {
     Css {
         ident: syn::Ident,
@@ -102,6 +123,8 @@ impl ToTokens for CssDeclaration {
 
 // --- Style ---
 
+// Parse Style Item.
+// Currently only CSS declarations.
 enum StyleItem {
     CssDeclaration(CssDeclaration),
 }
@@ -122,6 +145,7 @@ impl ToTokens for StyleItem {
     }
 }
 
+// A body of the `style!` macro.
 pub struct Style {
     items: Vec<StyleItem>,
 }

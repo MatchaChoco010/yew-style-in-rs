@@ -1,11 +1,15 @@
+use once_cell::sync::OnceCell;
+use serde::Deserialize;
 use std::env;
 use std::path::PathBuf;
 
-use once_cell::sync::OnceCell;
-use serde::Deserialize;
-
+// cache workspace directory
 static WORKSPACE: OnceCell<PathBuf> = OnceCell::new();
 
+// Get flag that this build is release build or not.
+//
+// I don't want the profile of the proc macro itself,
+// so I check the args starting with `debuginfo` instead of `#[cfg(debug_assertions)]`.
 pub fn is_release() -> bool {
     let mut is_release = true;
     let mut args = env::args();
@@ -17,6 +21,18 @@ pub fn is_release() -> bool {
     is_release
 }
 
+// Get output directory.
+// eg)
+// - target/debug/
+// - target/release/
+// - workspace/target/release/
+//
+// `OUT_DIR` env can't be used in proc macro.
+// https://github.com/rust-lang/cargo/issues/9084
+//
+// Get the directory from which the last directory was removed from the `--out-dir` argument
+// as a workaround.
+// if there is no `--out-dir` argument, then use default directory for `workspace/target/{profile}`.
 pub fn get_out_dir() -> PathBuf {
     let profile = if is_release() { "release" } else { "debug" };
 
@@ -40,6 +56,10 @@ pub fn get_out_dir() -> PathBuf {
     out_dir
 }
 
+// Get workspace directory path.
+//
+// Currently rust workspace directory information is only in `cargo metadata`.
+// So execute `cargo metadata` and parse json to get workspace_root directory.
 pub fn get_cargo_workspace() -> PathBuf {
     WORKSPACE
         .get_or_init(|| {
@@ -64,6 +84,10 @@ pub fn get_cargo_workspace() -> PathBuf {
         .into()
 }
 
+// Get dependencies and itself package names.
+//
+// `cargo metadata` return dependencies information/
+// So execute `cargo metadata` and parse json to get dependencies name.
 pub fn get_cargo_packages() -> Vec<String> {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let output = std::process::Command::new(env::var("CARGO").unwrap())
