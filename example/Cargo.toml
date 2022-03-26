@@ -2,6 +2,7 @@
 members = [
   "my-component-a",
   "my-component-b",
+  "my-component-c",
   "my-app",
 ]
 

@@ -10,6 +10,7 @@ crate-type = ["cdylib"]
 console_error_panic_hook = "0.1.7"
 my-component-a = { path = "../my-component-a" }
 my-component-b = { path = "../my-component-b" }
+my-component-c = { path = "../my-component-c" }
 yew = "0.19.3"
 wasm-bindgen = "0.2.79"
 wasm-logger = "0.2.0"

@@ -3,6 +3,8 @@ use quote::{quote, TokenStreamExt};
 use std::iter::Peekable;
 use std::str::Chars;
 
+use crate::style::keyframes::*;
+
 // Parser for `${<ident>}` in code.
 #[derive(Clone, Debug)]
 pub struct Cursor<'a> {
@@ -66,6 +68,49 @@ impl<'a> Cursor<'a> {
     }
 }
 
+// replace animation name to animation name with id
+fn replace_animation_name(
+    code: String,
+    animation_names: &Vec<RegisteredAnimationName>,
+) -> Result<String, String> {
+    let mut cursor = Cursor::new(&code);
+    let mut code = String::new();
+
+    while !cursor.is_empty() {
+        if cursor.peek('#') {
+            cursor.take('#').unwrap();
+            if cursor.peek('#') {
+                cursor.take('#').unwrap();
+                let name = cursor
+                    .take_until('#')
+                    .ok_or("`##<animation_name>##` is expected")?;
+
+                if let Some(name) = animation_names.iter().find(|n| n.animation_name == name) {
+                    code += &name.animation_name_with_scoped_id;
+                } else {
+                    return Err(format!(
+                        "animation name is not defined in `keyframe!` declaration: `##{name}##`"
+                    ));
+                }
+
+                cursor
+                    .take('#')
+                    .ok_or("`##<animation_name>##` is expected")?;
+                cursor
+                    .take('#')
+                    .ok_or("`##<animation_name>##` is expected")?;
+            } else {
+                code.push('#');
+            }
+        } else {
+            let ch = cursor.next().unwrap();
+            code.push(ch);
+        }
+    }
+
+    Ok(code)
+}
+
 // When `parse()`, inspect code and replace `{` with `{{`, `}` with `}}`, `${ident}` with `{ident}`
 // and collect idents to use when expanding macro.
 // When `expand()`, generate code with idents using `format!` macro
@@ -76,8 +121,12 @@ pub struct DynCss {
     idents: Vec<syn::Ident>,
 }
 impl DynCss {
-    pub fn expand(&self) -> TokenStream {
-        let code = &self.code;
+    pub fn expand(&self, animation_names: &Vec<RegisteredAnimationName>) -> TokenStream {
+        let code = self.code.value();
+        let code = match replace_animation_name(code, animation_names) {
+            Ok(code) => code,
+            Err(msg) => return quote!(std::compile_error!(#msg)),
+        };
 
         let dependencies = {
             let mut dependencies = TokenStream::new();

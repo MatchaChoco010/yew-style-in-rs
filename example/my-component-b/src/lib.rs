@@ -14,8 +14,6 @@ pub fn my_component_b() -> Html {
             height: 150px;
             text-align: center;
             box-sizing: border-box;
-            -webkit-backdrop-filter: blur(10px);
-            backdrop-filter: blur(10px);
 
             & > p {
                 background: white;
