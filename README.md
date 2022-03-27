@@ -430,3 +430,6 @@ To create scope, `translate` will be renamed like `translate-dynamic-AbCdEfGh` w
 
 The keyframes declare in `dyn keyframes!` can be used only in `dyn css!` declaration.
 The keyframes declare in `dyn keyframes!` can't be used in`css!` declaration.
+
+## License
+MIT or Apache 2.0
