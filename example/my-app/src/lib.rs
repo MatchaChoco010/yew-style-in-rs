@@ -3,6 +3,8 @@ use yew::prelude::*;
 
 use my_component_a::MyComponentA;
 use my_component_b::MyComponentB;
+use my_component_c::MyComponentC;
+use my_component_d::MyComponentD;
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
@@ -14,6 +16,8 @@ fn my_app() -> Html {
             <MyComponentA />
             <MyComponentB />
             <MyComponentA />
+            <MyComponentC />
+            <MyComponentD />
         </>
     }
 }

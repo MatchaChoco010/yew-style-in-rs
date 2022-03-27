@@ -1,6 +1,6 @@
 [package]
 name = "yew-style-in-rs-macro"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Orito Itsuki <orito.itsuki@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -24,4 +24,4 @@ quote = "1.0.15"
 serde = { version = "1.0.136", features = ["derive"] }
 serde_json = "1.0.79"
 syn = { version = "1.0.86", features = ["full"] }
-yew-style-in-rs-core = { version = "0.2.0", path = "../yew-style-in-rs-core" }
+yew-style-in-rs-core = { version = "0.3.0", path = "../yew-style-in-rs-core" }

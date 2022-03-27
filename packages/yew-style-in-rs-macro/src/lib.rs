@@ -1,5 +1,6 @@
 use proc_macro::TokenStream;
 
+mod cursor;
 mod state;
 mod style;
 mod util;

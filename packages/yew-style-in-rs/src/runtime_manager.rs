@@ -2,10 +2,11 @@ use once_cell::unsync::Lazy;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{cell::RefCell, iter::repeat_with};
-
-use crate::dyn_css::{StyleContent, StyleId};
 use yew_style_in_rs_core::ast::RuntimeCss;
 use yew_style_in_rs_core::transpiler::TranspiledCss;
+
+use crate::cursor::Cursor;
+use crate::dyn_css::{StyleContent, StyleId};
 
 struct StyleManagerInner {
     managed_ids: HashMap<String, StyleContent>,
@@ -47,6 +48,67 @@ impl StyleManager {
                 };
                 let css = TranspiledCss::transpile(&[format!(".{}", style_id.id())], css);
                 let css_code = css.to_style_string();
+
+                let document = gloo::utils::document();
+                let head = gloo::utils::head();
+                let style_element = document
+                    .create_element("style")
+                    .unwrap_or_else(|_| panic!("Failed to create style element"));
+                style_element
+                    .set_attribute("data-style", style_id.id())
+                    .unwrap_or_else(|_| panic!("Failed to set style attribute"));
+                style_element.set_text_content(Some(&css_code));
+                head.append_child(&style_element)
+                    .unwrap_or_else(|_| panic!("Failed to mount style element"));
+
+                break StyleContent::new(style_id, code);
+            });
+
+        managed_content.increment();
+        managed_content.clone()
+    }
+
+    pub fn register_dyn_keyframes(&self, code: String) -> StyleContent {
+        let mut inner = self.inner.borrow_mut();
+        let already_exists_ids = inner
+            .managed_ids
+            .values()
+            .map(|content| content.style_id())
+            .collect::<Vec<_>>();
+        let managed_content = inner
+            .managed_ids
+            .entry(code.to_owned())
+            .or_insert_with(|| loop {
+                let id = repeat_with(fastrand::alphabetic)
+                    .take(8)
+                    .collect::<String>();
+                let style_id = StyleId::new(&format!("dynamic-{id}"));
+                if already_exists_ids.contains(&style_id) {
+                    continue;
+                }
+
+                let mut cursor = Cursor::new(&code);
+                let mut css_code = String::new();
+                loop {
+                    match cursor.take_until('@') {
+                        Ok(content) => {
+                            css_code += &content;
+
+                            cursor.take('@').ok_or("`@keyframes` is expected").unwrap();
+                            cursor.take_until_whitespace().unwrap();
+                            cursor.take(' ');
+                            css_code += "@keyframes ";
+                            let animation_name = cursor.take_until('{').unwrap();
+                            let animation_name_with_scoped_id =
+                                String::new() + &animation_name + "-" + style_id.id();
+                            css_code += &animation_name_with_scoped_id;
+                        }
+                        Err(content) => {
+                            css_code += &content;
+                            break;
+                        }
+                    }
+                }
 
                 let document = gloo::utils::document();
                 let head = gloo::utils::head();
