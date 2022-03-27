@@ -1,72 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{quote, TokenStreamExt};
-use std::iter::Peekable;
-use std::str::Chars;
 
+use crate::cursor::*;
 use crate::style::keyframes::*;
-
-// Parser for `${<ident>}` in code.
-#[derive(Clone, Debug)]
-pub struct Cursor<'a> {
-    content: Peekable<Chars<'a>>,
-}
-impl<'a> Cursor<'a> {
-    fn new(content: &'a str) -> Self {
-        Self {
-            content: content.chars().peekable(),
-        }
-    }
-
-    fn is_empty(&mut self) -> bool {
-        self.content.peek().is_none()
-    }
-
-    fn peek(&mut self, ch: char) -> bool {
-        self.content.peek() == Some(&ch)
-    }
-
-    fn next(&mut self) -> Option<char> {
-        self.content.next()
-    }
-
-    fn take(&mut self, ch: char) -> Option<char> {
-        if let Some(c) = self.content.next() {
-            if c == ch {
-                Some(ch)
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-
-    fn take_until(&mut self, delimiter: char) -> Option<String> {
-        let mut ret = String::new();
-        loop {
-            if let Some(&c) = self.content.peek() {
-                if c == delimiter {
-                    return Some(ret);
-                } else {
-                    ret.push(c);
-                    self.content.next();
-                }
-            } else {
-                return None;
-            }
-        }
-    }
-
-    fn take_brace(&mut self) -> Option<String> {
-        self.take('{')?;
-        if let Some(content) = self.take_until('}') {
-            self.take('}');
-            Some(content)
-        } else {
-            None
-        }
-    }
-}
 
 // replace animation name to animation name with id
 fn replace_animation_name(
@@ -82,9 +18,9 @@ fn replace_animation_name(
             cursor.take('#').unwrap();
             if cursor.peek('#') {
                 cursor.take('#').unwrap();
-                let name = cursor
-                    .take_until('#')
-                    .ok_or("`##<animation_name>##` is expected")?;
+                let (name, _) = cursor
+                    .take_until(&['#'])
+                    .map_err(|_| "`##<animation_name>##` is expected")?;
 
                 if name.is_empty() {
                     return Err(format!("animation name is empty"));
