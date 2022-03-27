@@ -17,12 +17,12 @@ Note: `example/my-app/Trunk.toml` needs to be rewritten for non-Windows because 
 
 ### `style!` macro
 
-`css!` declaration generates scoped css at compile time.
-`style.css` will be generated in the build directory at compile time.
+`style!` macro generates scoped css.
+`style!` macro can contain `css!`, `dyn css!`, `keyframe!` or `dyn keyframe!` declarations.
 
 #### `css!` declaration
 
-`css!` macro generates scoped css at compile time.
+`css!` declaration generates scoped css at compile time.
 
 ```rust
 use yew::prelude::*;
@@ -71,7 +71,7 @@ The above code generates the following `style.css` in the build directory.
 `AbCdEfGh` is a random 8-letter alphabet.
 Note that CSS Nesting can be used.
 
-`css!` macro can specify the name of the css file to be generated.
+`css!` declaration can specify the name of the css file to be generated.
 
 ```rust
 use yew::prelude::*;
@@ -246,3 +246,187 @@ pub fn my_component() -> Html {
     }
 }
 ```
+
+Interpolation by ${{}} can be used in various places.
+
+```rs
+# use yew::prelude::*;
+# use yew_style_in_rs::*;
+#
+#[function_component(MyComponent)]
+pub fn my_component() -> Html {
+    let property_name = "background";
+    let property_value = "black";
+    let selector = "p";
+    let declaration = "& > div { background: white; }";
+    style! {
+        let dynamic_css = dyn css! {r#"
+            ${property_name}: ${property_value};
+            & > ${selector} {
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            }
+            ${declaration}
+        "#};
+    }
+    html! {
+        <div class={dynamic_css}>
+            <p>{"dynamic css"}</p>
+            <div>{"Hi"}</div>
+        </div>
+    }
+}
+```
+
+#### `keyframe!` declaration
+
+`keyframe!` declaration generates scoped @keyframes at compile time.
+`style.css` will be generated in the build directory at compile time.
+
+```rs
+# use yew::prelude::*;
+# use yew_style_in_rs::*;
+#
+#[function_component(MyComponent)]
+pub fn my_component() -> Html {
+    style! {
+        let css = css! {r#"
+            animation: ##anim## 1s;
+        "#};
+        keyframe!{r#"
+            @keyframes anim {
+                from { transform: translateX(0px); }
+                to { transform: translateX(100px); }
+            }
+        "#}
+    }
+    html! {
+        <div class={classes!(css)}>
+            <p>{"compile time css animation"}</p>
+        </div>
+    }
+}
+```
+
+The declared animation is used by writing `##<ANIMATION NAME>##` like `##anim##`.
+To create scope, `anim` will be renamed like `anim-AbCdEfGh` when compiled.
+
+You can pass a filename of the style sheet.
+
+```rs
+# use yew::prelude::*;
+# use yew_style_in_rs::*;
+#
+#[function_component(MyComponent)]
+pub fn my_component() -> Html {
+    style! {
+        let css = css! {r#"
+            animation: ##anim## 1s;
+        "#};
+        keyframe!(filename = "important") {r#"
+            @keyframes anim {
+                from { transform: translateX(0px); }
+                to { transform: translateX(100px); }
+            }
+        "#}
+    }
+    html! {
+        <div class={classes!(css)}>
+            <p>{"compile time css animation"}</p>
+        </div>
+    }
+}
+```
+
+The above code generates `important.css`.
+
+#### `dyn keyframe!` declaration
+
+`dyn keyframe!` declaration generates scoped css at runtime.
+`style` html elements are generated and inserted into the head of the html.
+
+```rs
+# use yew::prelude::*;
+# use yew_style_in_rs::*;
+#[function_component(MyComponentD)]
+pub fn my_component_d() -> Html {
+    let from_x_ref = use_mut_ref(|| 20);
+    let to_x_ref = use_mut_ref(|| 20);
+    let disabled_button = use_mut_ref(|| false);
+    let animate_class = use_state(|| None);
+
+    let onclick = Callback::from({
+        let to_x_ref = to_x_ref.clone();
+        let disabled_button = disabled_button.clone();
+        let animate_class = animate_class.clone();
+        move |_| {
+            *to_x_ref.borrow_mut() += 20;
+            if *to_x_ref.borrow() >= 100 {
+                *to_x_ref.borrow_mut() = 0;
+            }
+            *disabled_button.borrow_mut() = true;
+            animate_class.set(Some("animate"));
+        }
+    });
+    let onanimationend = Callback::from({
+        let from_x_ref = from_x_ref.clone();
+        let disabled_button = disabled_button.clone();
+        let animate_class = animate_class.clone();
+        move |_| {
+            *from_x_ref.borrow_mut() += 20;
+            if *from_x_ref.borrow() >= 100 {
+                *from_x_ref.borrow_mut() = 0;
+            }
+            *disabled_button.borrow_mut() = false;
+            animate_class.set(None);
+        }
+    });
+
+    let from_x = *from_x_ref.borrow();
+    let to_x = *to_x_ref.borrow();
+    let disabled = *disabled_button.borrow();
+
+    style! {
+        let css = css! {r#"
+            border-top: solid 20px;
+            border-bottom: solid 20px;
+            width: 100%;
+            height: 150px;
+            text-align: center;
+            box-sizing: border-box;
+
+            & > div {
+                width: 50px;
+                height: 50px;
+                background: black;
+            }
+        "#};
+        let dyn_css = dyn css!{r#"
+            & > div {
+                transform: translateX(${from_x}vw);
+            }
+            & > div.animate {
+                animation: ##translate## 1s;
+            }
+        "#};
+        dyn keyframes!{r#"
+            @keyframes translate {
+                to {
+                    transform: translateX(${to_x}vw);
+                }
+            }
+        "#}
+    }
+    html! {
+        <div class={classes!(css, dyn_css)}>
+            <div class={*animate_class} {onanimationend}/>
+            <button {onclick} {disabled}>{"Click Me!"}</button>
+        </div>
+    }
+}
+```
+
+The declared animation is used by writing `##<ANIMATION NAME>##` like `##translate##`.
+To create scope, `translate` will be renamed like `translate-dynamic-AbCdEfGh` when compiled.
+
+The keyframes declare in `dyn keyframes!` can be used only in `dyn css!` declaration.
+The keyframes declare in `dyn keyframes!` can't be used in`css!` declaration.
