@@ -72,6 +72,7 @@ impl<'a> Cursor<'a> {
 fn replace_animation_name(
     code: String,
     animation_names: &Vec<RegisteredAnimationName>,
+    dyn_animation_names: &Vec<String>,
 ) -> Result<String, String> {
     let mut cursor = Cursor::new(&code);
     let mut code = String::new();
@@ -85,8 +86,19 @@ fn replace_animation_name(
                     .take_until('#')
                     .ok_or("`##<animation_name>##` is expected")?;
 
+                if name.is_empty() {
+                    return Err(format!("animation name is empty"));
+                }
+                if name.chars().any(|c| c.is_whitespace()) {
+                    return Err(format!("animation name  can not contain whitespace"));
+                }
+
                 if let Some(name) = animation_names.iter().find(|n| n.animation_name == name) {
                     code += &name.animation_name_with_scoped_id;
+                } else if dyn_animation_names.contains(&name) {
+                    code += "##";
+                    code += &name;
+                    code += "##";
                 } else {
                     return Err(format!(
                         "animation name is not defined in `keyframe!` declaration: `##{name}##`"
@@ -121,9 +133,13 @@ pub struct DynCss {
     idents: Vec<syn::Ident>,
 }
 impl DynCss {
-    pub fn expand(&self, animation_names: &Vec<RegisteredAnimationName>) -> TokenStream {
+    pub fn expand(
+        &self,
+        animation_names: &Vec<RegisteredAnimationName>,
+        dyn_animation_names: &Vec<String>,
+    ) -> TokenStream {
         let code = self.code.value();
-        let code = match replace_animation_name(code, animation_names) {
+        let code = match replace_animation_name(code, animation_names, dyn_animation_names) {
             Ok(code) => code,
             Err(msg) => return quote!(std::compile_error!(#msg)),
         };
@@ -135,10 +151,20 @@ impl DynCss {
             }
             dependencies
         };
+        let animation_names_vec = {
+            let mut tokens = TokenStream::new();
+            for name in animation_names {
+                let name = name.animation_name.clone();
+                tokens.append_all(quote!((#name).to_string(), ));
+            }
+            quote!(vec![#tokens])
+        };
 
         quote! {{
             let prev_style_handle = ::yew::use_mut_ref(|| None);
             let style_state = ::yew::use_state_eq(|| None);
+
+            let animation_names: Vec<String> = #animation_names_vec;
 
             let code = format!(#code, #dependencies);
 
@@ -146,9 +172,49 @@ impl DynCss {
             ::yew::use_effect_with_deps(
                 {
                     let style_state = style_state.clone();
-                    move |code: &String| {
+                    move |(code, dyn_names_map): &(String, std::collections::HashMap<String, Vec<String>>)| {
                         let manager = ::yew_style_in_rs::runtime_manager::StyleManager::default();
-                        let style = manager.register(code.to_string());
+
+                        let mut cursor = ::yew_style_in_rs::cursor::Cursor::new(code);
+                        let mut code = String::new();
+                        while !cursor.is_empty() {
+                            if cursor.peek('#') {
+                                cursor.take('#').unwrap();
+                                if cursor.peek('#') {
+                                    cursor.take('#').unwrap();
+                                    let name = match cursor.take_until('#') {
+                                        Ok(name) => name,
+                                        Err(_) => break,
+                                    };
+
+                                    if let Some(name) = animation_names.iter().find(|&n| n == &name) {
+                                        code += &name;
+                                    } else {
+                                        if let Some((id, _)) = dyn_names_map.iter().find(|(_, n)| n.contains(&name)) {
+                                            code += &name;
+                                            code += "-";
+                                            code += id;
+                                        } else {
+                                            code += "##";
+                                            code += &name;
+                                            code += "##";
+                                        }
+                                    }
+
+                                    cursor.take('#').unwrap();
+                                    if cursor.peek('#') {
+                                        cursor.take('#').unwrap();
+                                    }
+                                } else {
+                                    code.push('#');
+                                }
+                            } else {
+                                let ch = cursor.next().unwrap();
+                                code.push(ch);
+                            }
+                        }
+
+                        let style = manager.register(code);
                         if let Some(style) = prev_style_handle.borrow().clone() {
                             manager.unregister(style);
                         }
@@ -157,7 +223,7 @@ impl DynCss {
                         || ()
                     }
                 },
-                code
+                (code, dyn_names_map.clone())
             );
 
             // Unregister style when destroy elements.

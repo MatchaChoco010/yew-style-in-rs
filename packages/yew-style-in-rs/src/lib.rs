@@ -145,3 +145,6 @@ pub mod dyn_css;
 
 #[doc(hidden)]
 pub mod runtime_manager;
+
+#[doc(hidden)]
+pub mod cursor;

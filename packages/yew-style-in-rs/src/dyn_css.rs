@@ -7,7 +7,7 @@ impl StyleId {
         Self(id.to_string())
     }
 
-    pub(crate) fn id(&self) -> &str {
+    pub fn id(&self) -> &str {
         &self.0
     }
 }

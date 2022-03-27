@@ -5,6 +5,7 @@ use std::collections::HashSet;
 
 mod css;
 mod dyn_css;
+mod dyn_keyframes;
 mod keyframes;
 
 mod kw {
@@ -72,7 +73,18 @@ enum CssDeclaration {
     },
 }
 impl CssDeclaration {
-    fn expand(&self, animation_names: &Vec<RegisteredAnimationName>) -> TokenStream {
+    fn ident(&self) -> syn::Ident {
+        match self {
+            Self::Css { ident, .. } => ident.clone(),
+            Self::DynCss { ident, .. } => ident.clone(),
+        }
+    }
+
+    fn expand(
+        &self,
+        animation_names: &Vec<RegisteredAnimationName>,
+        dyn_animation_names: &Vec<String>,
+    ) -> TokenStream {
         let mut tokens = TokenStream::new();
         match self {
             Self::Css {
@@ -84,7 +96,7 @@ impl CssDeclaration {
                 tokens.append_all(quote! (let #ident = #css;))
             }
             Self::DynCss { ident, dyn_css } => {
-                let dyn_css = dyn_css.expand(animation_names);
+                let dyn_css = dyn_css.expand(animation_names, dyn_animation_names);
                 tokens.append_all(quote!(let #ident = #dyn_css;))
             }
         }
@@ -133,6 +145,7 @@ impl syn::parse::Parse for CssDeclaration {
 enum StyleItem {
     CssDeclaration(CssDeclaration),
     Keyframes(keyframes::Keyframes),
+    DynKeyframes(dyn_keyframes::DynKeyframes),
 }
 impl syn::parse::Parse for StyleItem {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
@@ -140,6 +153,11 @@ impl syn::parse::Parse for StyleItem {
             Ok(Self::CssDeclaration(input.parse()?))
         } else if input.peek(syn::Ident) && input.peek2(syn::Token![!]) {
             Ok(Self::Keyframes(input.parse()?))
+        } else if input.peek(syn::Token![dyn])
+            && input.peek2(syn::Ident)
+            && input.peek3(syn::Token![!])
+        {
+            Ok(Self::DynKeyframes(input.parse()?))
         } else {
             Err(input.error("expected css declarations."))
         }
@@ -161,16 +179,24 @@ impl syn::parse::Parse for Style {
 }
 impl Style {
     pub fn expand(&self) -> TokenStream {
-        let mut token_stream = TokenStream::new();
+        let mut content_tokens = TokenStream::new();
 
         let mut css_declarations = vec![];
         let mut animation_names = vec![];
+        let mut dyn_animation_names = vec![];
 
         for item in &self.items {
             match item {
                 StyleItem::CssDeclaration(declaration) => css_declarations.push(declaration),
                 StyleItem::Keyframes(keyframes) => match keyframes.register() {
                     Ok(mut names) => animation_names.append(&mut names),
+                    Err(msg) => return quote!(std::compile_error!(#msg)),
+                },
+                StyleItem::DynKeyframes(dyn_keyframes) => match dyn_keyframes.expand() {
+                    Ok((tokens, mut names)) => {
+                        content_tokens.append_all(tokens);
+                        dyn_animation_names.append(&mut names);
+                    }
                     Err(msg) => return quote!(std::compile_error!(#msg)),
                 },
             }
@@ -186,12 +212,39 @@ impl Style {
                     set.insert(name.animation_name.to_owned());
                 }
             }
+            for name in &dyn_animation_names {
+                if let Some(_) = set.get(name) {
+                    return quote!(std::compile_error!("Duplicate animation name"));
+                } else {
+                    set.insert(name.to_owned());
+                }
+            }
         }
 
+        let idents_tokens = {
+            let mut tokens = TokenStream::new();
+            let mut set = HashSet::new();
+            for declaration in &css_declarations {
+                let ident = declaration.ident();
+                tokens.append_all(quote!(#ident, ));
+                if let Some(_) = set.get(&ident.to_string()) {
+                    return quote!(std::compile_error!("Duplicate let declaration identifier"));
+                } else {
+                    set.insert(ident.to_string());
+                }
+            }
+            tokens
+        };
+
         for declaration in css_declarations {
-            let item = declaration.expand(&animation_names);
-            token_stream.append_all(quote!(#item));
+            let item = declaration.expand(&animation_names, &&dyn_animation_names);
+            content_tokens.append_all(quote!(#item));
         }
-        token_stream
+
+        quote! {let (#idents_tokens) = {
+            let mut dyn_names_map = std::collections::HashMap::<String, Vec<String>>::new();
+            #content_tokens
+            (#idents_tokens)
+        };}
     }
 }
