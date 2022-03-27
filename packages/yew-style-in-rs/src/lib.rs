@@ -1,5 +1,5 @@
 /// `style!` macro generates scoped css.
-/// `style!` macro can contain `css!`, `dyn css!`, `keyframe!` or `dyn keyframe!` declarations.
+/// `style!` macro can contain `css!`, `dyn css!`, `keyframes!` or `dyn keyframes!` declarations.
 ///
 /// # `css!` declaration
 ///
@@ -164,9 +164,9 @@
 /// }
 /// ```
 ///
-/// # `keyframe!` declaration
+/// # `keyframes!` declaration
 ///
-/// `keyframe!` declaration generates scoped @keyframes at compile time.
+/// `keyframes!` declaration generates scoped @keyframes at compile time.
 /// `style.css` will be generated in the build directory at compile time.
 ///
 /// ## Example
@@ -181,7 +181,7 @@
 ///         let css = css! {r#"
 ///             animation: ##anim## 1s;
 ///         "#};
-///         keyframe!{r#"
+///         keyframes!{r#"
 ///             @keyframes anim {
 ///                 from { transform: translateX(0px); }
 ///                 to { transform: translateX(100px); }
@@ -211,7 +211,7 @@
 ///         let css = css! {r#"
 ///             animation: ##anim## 1s;
 ///         "#};
-///         keyframe!(filename = "important") {r#"
+///         keyframes!(filename = "important") {r#"
 ///             @keyframes anim {
 ///                 from { transform: translateX(0px); }
 ///                 to { transform: translateX(100px); }
@@ -228,9 +228,9 @@
 ///
 /// The above code generates `important.css`.
 ///
-/// # `dyn keyframe!` declaration
+/// # `dyn keyframes!` declaration
 ///
-/// `dyn keyframe!` declaration generates scoped css at runtime.
+/// `dyn keyframes!` declaration generates scoped css at runtime.
 /// `style` html elements are generated and inserted into the head of the html.
 ///
 /// ## Example
