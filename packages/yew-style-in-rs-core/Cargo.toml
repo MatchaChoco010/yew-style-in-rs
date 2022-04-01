@@ -1,6 +1,6 @@
 [package]
 name = "yew-style-in-rs-core"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 authors = ["Orito Itsuki <orito.itsuki@gmail.com>"]
 license = "MIT OR Apache-2.0"

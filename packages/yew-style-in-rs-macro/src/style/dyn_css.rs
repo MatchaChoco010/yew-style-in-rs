@@ -1,5 +1,6 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{quote, TokenStreamExt};
+use std::collections::HashSet;
 
 use crate::cursor::*;
 use crate::style::keyframes::*;
@@ -82,7 +83,12 @@ impl DynCss {
 
         let dependencies = {
             let mut dependencies = TokenStream::new();
+            let mut hashset = HashSet::new();
             for ident in &self.idents {
+                hashset.insert(ident.to_string());
+            }
+            for ident in hashset.iter() {
+                let ident = syn::Ident::new(ident, Span::call_site());
                 dependencies.append_all(quote!(#ident = #ident, ));
             }
             dependencies

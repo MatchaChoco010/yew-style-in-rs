@@ -1,6 +1,6 @@
 [package]
 name = "yew-style-in-rs"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 authors = ["Orito Itsuki <orito.itsuki@gmail.com>"]
 license = "MIT OR Apache-2.0"
@@ -21,5 +21,5 @@ web-sys = { version = "0.3.56", features = [
     "HtmlStyleElement",
 ]}
 yew = "0.19.3"
-yew-style-in-rs-core = { version = "0.3.0", path = "../yew-style-in-rs-core" }
-yew-style-in-rs-macro = { version = "0.3.0", path = "../yew-style-in-rs-macro" }
+yew-style-in-rs-core = { version = "0.3.2", path = "../yew-style-in-rs-core" }
+yew-style-in-rs-macro = { version = "0.3.2", path = "../yew-style-in-rs-macro" }
