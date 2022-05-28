@@ -1,4 +1,0 @@
-[[hooks]]
-stage = "post_build"
-command = "cmd"
-command_arguments = ["/C", "copy", "..\\target\\wasm32-unknown-unknown\\%TRUNK_PROFILE%\\*.css", ".\\dist\\.stage"]

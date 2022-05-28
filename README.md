@@ -11,8 +11,6 @@ $ cd example/my-app
 $ trunk serve --release
 ```
 
-Note: `example/my-app/Trunk.toml` needs to be rewritten for non-Windows because relay on windows `copy` cmd.
-
 ## Usage
 
 ### `style!` macro
