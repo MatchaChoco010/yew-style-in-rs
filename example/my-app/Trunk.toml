@@ -1,0 +1,4 @@
+[[hooks]]
+stage = "post_build"
+command = "cargo"
+command_arguments = ["run", "--release", "-p", "post-build"]

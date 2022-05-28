@@ -3,13 +3,18 @@ use std::path::Path;
 use std::fs;
 
 fn main() {
-    // copy *.css from the output directory to the dist directory
+    // Get output directory
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let manifest_dir = Path::new(&manifest_dir);
-    let profile = env::var("PROFILE").unwrap();
     let target_dir = manifest_dir.parent().unwrap().join("target");
+    let profile = env::var("TRUNK_PROFILE").unwrap();
     let output_dir = Path::new(&target_dir).join("wasm32-unknown-unknown").join(profile);
-    let staging_dir = Path::new(&manifest_dir).join("dist").join(".stage");
+
+    // Get staging directory
+    let staging_dir = env::var("TRUNK_STAGING_DIR").unwrap();
+    let staging_dir = Path::new(&staging_dir);
+
+    // Copy *.css from the output directory to the staging directory
     for entry in fs::read_dir(output_dir).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
@@ -21,7 +26,4 @@ fn main() {
             }
         }
     }
-
-    // rerun the build script if dist/.stage directory is created
-    println!("cargo:rerun-if-changed=dist/.stage/");
 }
