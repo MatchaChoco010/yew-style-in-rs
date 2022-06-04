@@ -15,6 +15,12 @@ dry-run = ["yew-style-in-rs/dry-run"]
 cargo-args = ["--features=dry-run"]
 ```
 
+You might need to publish with `dry-run`.
+
+```sh
+$ cargo publish --features dry-run
+```
+
 ## Usage
 
 ### `style!` macro
