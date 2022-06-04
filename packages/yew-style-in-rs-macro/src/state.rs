@@ -44,7 +44,7 @@ pub struct State {
     pub build_path: PathBuf,
     pub lockfile_path: PathBuf,
     pub package_path: PathBuf,
-    lockfile: LockFile,
+    pub write_flag: bool,
 }
 impl State {
     // Create `target/release/build-yew-style-in-rs/` directory,
@@ -63,37 +63,36 @@ impl State {
         let out_dir = crate::util::get_out_dir();
 
         let build_path = out_dir.join("build-yew-style-in-rs");
-        if !build_path.exists() {
-            fs::create_dir_all(&build_path)?;
-        }
 
         let package_path = build_path.join(env::var("CARGO_PKG_NAME")?);
-        if !package_path.exists() {
-            fs::create_dir_all(&package_path)?;
-        }
 
-        for entry in fs::read_dir(&package_path)? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_file() {
-                fs::remove_file(path)?;
+        if package_path.exists() {
+            for entry in fs::read_dir(&package_path)? {
+                let entry = entry?;
+                let path = entry.path();
+                if path.is_file() {
+                    fs::remove_file(path)?;
+                }
             }
         }
 
         let lockfile_path = build_path.join("lockfile");
-        let lockfile = LockFile::open(&lockfile_path)?;
 
         Ok(Self {
             build_path,
             lockfile_path,
-            lockfile,
             package_path,
+            write_flag: false,
         })
     }
 
     // Check `target/release/build-yew-style-in-rs/<CRATE NAME>/<RANDOM 8 CHARACTER>`
     // is exists or not for every exist <CRATE NAME> directories,
     fn exists_id(&self, id: &str) -> bool {
+        if !self.build_path.exists() {
+            fs::create_dir_all(&self.build_path).unwrap();
+        }
+
         fs::read_dir(&self.build_path)
             .expect("build yew-style-in-rs dir is not exists")
             .into_iter()
@@ -118,7 +117,16 @@ impl State {
     // Create `target/release/build-yew-style-in-rs/<CRATE NAME>/<RANDOM 8 CHARACTER>`
     // for new <RANDOM 8 CHARACTER>.
     pub fn create_random_id_file(&mut self) -> Result<(String, fs::File)> {
-        self.lockfile.lock()?;
+        if !self.build_path.exists() {
+            fs::create_dir_all(&self.build_path)?;
+        }
+
+        let mut lockfile = LockFile::open(&self.lockfile_path)?;
+        lockfile.lock()?;
+
+        if !self.package_path.exists() {
+            fs::create_dir_all(&self.package_path)?;
+        }
 
         let (id, file) = loop {
             let id = repeat_with(fastrand::alphabetic)
@@ -131,7 +139,7 @@ impl State {
             }
         };
 
-        self.lockfile.unlock()?;
+        lockfile.unlock()?;
 
         Ok((id, file))
     }
@@ -141,6 +149,16 @@ impl State {
     // and write CSS fragments into files.
     // CSS fragments first line is filename for output css file.
     fn generate_css(&mut self) {
+        // if not write_flag, do nothing.
+        if !self.write_flag {
+            return;
+        }
+
+        // Generate build path is not exists
+        if !self.build_path.exists() {
+            fs::create_dir_all(&self.build_path).unwrap();
+        }
+
         // Removing CSS files from a deleted package
         let packages = crate::util::get_cargo_packages();
         for entry in fs::read_dir(&self.build_path).unwrap() {

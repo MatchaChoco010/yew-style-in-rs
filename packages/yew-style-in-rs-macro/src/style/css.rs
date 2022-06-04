@@ -1,18 +1,17 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use std::io::Write;
-use yew_style_in_rs_core::ast::RuntimeCss;
-use yew_style_in_rs_core::transpiler::TranspiledCss;
 
-use crate::cursor::*;
-use crate::state::*;
 use crate::style::keyframes::*;
+
+use crate::state::*;
 
 // replace animation name to animation name with id
 fn replace_animation_name(
     code: String,
     animation_names: &Vec<RegisteredAnimationName>,
 ) -> Result<String, String> {
+    use crate::cursor::*;
+
     let mut cursor = Cursor::new(&code);
     let mut code = String::new();
 
@@ -63,33 +62,44 @@ impl Css {
         filename: &Option<syn::LitStr>,
         animation_names: &Vec<RegisteredAnimationName>,
     ) -> TokenStream {
+        use std::io::Write;
+        use yew_style_in_rs_core::ast::RuntimeCss;
+        use yew_style_in_rs_core::transpiler::TranspiledCss;
+
         let mut state = STATE.lock().unwrap();
-        let (id, mut file) = state
-            .create_random_id_file()
-            .expect("Failed to save internal file for yew-style-in-rs");
 
-        let filename = filename
-            .as_ref()
-            .map(|l| l.value())
-            .unwrap_or("style".into());
-        file.write(format!("{filename}\n").as_bytes())
-            .expect("Failed to save internal file for yew-style-in-rs");
+        let id = if state.write_flag {
+            let (id, mut file) = state
+                .create_random_id_file()
+                .expect("Failed to save internal file for yew-style-in-rs");
 
-        let code = self.code.value();
-        let code = match replace_animation_name(code, animation_names) {
-            Ok(code) => code,
-            Err(msg) => return quote!(std::compile_error!(#msg)),
+            let filename = filename
+                .as_ref()
+                .map(|l| l.value())
+                .unwrap_or("style".into());
+            file.write(format!("{filename}\n").as_bytes())
+                .expect("Failed to save internal file for yew-style-in-rs");
+
+            let code = self.code.value();
+            let code = match replace_animation_name(code, animation_names) {
+                Ok(code) => code,
+                Err(msg) => return quote!(std::compile_error!(#msg)),
+            };
+
+            let runtime_css = match RuntimeCss::parse(code) {
+                Ok(runtime_css) => runtime_css,
+                Err((_, msg)) => return quote!(std::compile_error!(#msg)),
+            };
+            let transpiled_css = TranspiledCss::transpile(&[format!(".{id}")], runtime_css);
+            let css = transpiled_css.to_style_string();
+
+            file.write(css.as_bytes())
+                .expect("Failed to save internal file for yew-style-in-rs");
+
+            id
+        } else {
+            "dummy".into()
         };
-
-        let runtime_css = match RuntimeCss::parse(code) {
-            Ok(runtime_css) => runtime_css,
-            Err((_, msg)) => return quote!(std::compile_error!(#msg)),
-        };
-        let transpiled_css = TranspiledCss::transpile(&[format!(".{id}")], runtime_css);
-        let css = transpiled_css.to_style_string();
-
-        file.write(css.as_bytes())
-            .expect("Failed to save internal file for yew-style-in-rs");
 
         quote!({
             use ::yew_style_in_rs::css::StyleId;
