@@ -14,5 +14,9 @@ $ trunk serve --release
 ## Usage
 [packages/yew-style-in-rs](packages/yew-style-in-rs/README.md)
 
+## Crates using `yew-style-in-rs`
+
+- [MatchaChoco010/yew-scroll-area](https://github.com/MatchaChoco010/yew-scroll-area): Custom scroll bar for yew
+
 ## License
 MIT or Apache 2.0
