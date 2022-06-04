@@ -1,6 +1,6 @@
 use std::env;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 fn main() {
     // Get output directory
@@ -8,7 +8,9 @@ fn main() {
     let manifest_dir = Path::new(&manifest_dir);
     let target_dir = manifest_dir.parent().unwrap().join("target");
     let profile = env::var("TRUNK_PROFILE").unwrap();
-    let output_dir = Path::new(&target_dir).join("wasm32-unknown-unknown").join(profile);
+    let output_dir = Path::new(&target_dir)
+        .join("wasm32-unknown-unknown")
+        .join(profile);
 
     // Get staging directory
     let staging_dir = env::var("TRUNK_STAGING_DIR").unwrap();

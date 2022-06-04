@@ -6,3 +6,10 @@ edition = "2021"
 [dependencies]
 yew = "0.19.3"
 yew-style-in-rs = { path = "../../packages/yew-style-in-rs" }
+
+[features]
+default = []
+dry-run = ["yew-style-in-rs/dry-run"]
+
+[package.metadata.docs.rs]
+cargo-args = ["--features=dry-run"]

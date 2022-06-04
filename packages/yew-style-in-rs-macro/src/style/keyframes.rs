@@ -1,7 +1,5 @@
-use std::io::Write;
 use syn::braced;
 
-use crate::cursor::*;
 use crate::state::*;
 
 mod kw {
@@ -72,96 +70,107 @@ pub struct RegisteredAnimationName {
 // "#}
 pub struct Keyframes {
     filename: Option<syn::LitStr>,
+
     code: syn::LitStr,
 }
 impl Keyframes {
     pub fn register(&self) -> Result<Vec<RegisteredAnimationName>, String> {
+        use crate::cursor::*;
+        use std::io::Write;
+
         let mut state = STATE.lock().unwrap();
-        let (id, mut file) = state
-            .create_random_id_file()
-            .expect("Failed to save internal file for yew-style-in-rs");
 
-        let code = self.code.value();
-        let mut cursor = Cursor::new(&code);
-        let mut code = String::new();
-        let mut anim_names = vec![];
+        let anim_names = if state.write_flag {
+            let (id, mut file) = state
+                .create_random_id_file()
+                .expect("Failed to save internal file for yew-style-in-rs");
 
-        cursor.skip_white_space();
-        while cursor.peek('@') {
-            cursor.take('@').ok_or("`@keyframes` is expected")?;
-            if &cursor
-                .take_until_whitespace()
-                .ok_or("`@keyframes` is expected")?
-                != "keyframes"
-            {
-                return Err("`@keyframes` is expected".into());
-            }
-            code += "@keyframes";
+            let code = self.code.value();
+            let mut cursor = Cursor::new(&code);
+            let mut code = String::new();
+            let mut anim_names = vec![];
 
             cursor.skip_white_space();
-            code += " ";
+            while cursor.peek('@') {
+                cursor.take('@').ok_or("`@keyframes` is expected")?;
+                if &cursor
+                    .take_until_whitespace()
+                    .ok_or("`@keyframes` is expected")?
+                    != "keyframes"
+                {
+                    return Err("`@keyframes` is expected".into());
+                }
+                code += "@keyframes";
 
-            let animation_name = cursor
-                .take_until_whitespace()
-                .ok_or("animation name is expected")?;
-            let animation_name_with_scoped_id = String::new() + &animation_name + "-" + &id;
-            code += &animation_name_with_scoped_id;
-            anim_names.push(RegisteredAnimationName {
-                animation_name,
-                animation_name_with_scoped_id,
-            });
+                cursor.skip_white_space();
+                code += " ";
 
-            cursor.skip_white_space();
+                let animation_name = cursor
+                    .take_until_whitespace()
+                    .ok_or("animation name is expected")?;
+                let animation_name_with_scoped_id = String::new() + &animation_name + "-" + &id;
+                code += &animation_name_with_scoped_id;
+                anim_names.push(RegisteredAnimationName {
+                    animation_name,
+                    animation_name_with_scoped_id,
+                });
 
-            code += "{";
-            let content = cursor.take_brace().ok_or("`{` is expected")?;
-            let mut content_cursor = Cursor::new(&content);
-            content_cursor.skip_white_space();
-            while let Ok((percentage, _)) = content_cursor.take_until(&['{']) {
-                code += percentage.trim();
-
-                content_cursor.skip_white_space();
+                cursor.skip_white_space();
 
                 code += "{";
-                let content = content_cursor.take_brace().ok_or("`{` is expected")?;
+                let content = cursor.take_brace().ok_or("`{` is expected")?;
                 let mut content_cursor = Cursor::new(&content);
                 content_cursor.skip_white_space();
-                while !content_cursor.is_empty() {
-                    let (property, _) = content_cursor
-                        .take_until(&[':'])
-                        .map_err(|_| "property is expected")?;
-                    content_cursor.take(':').ok_or("`:` is expected")?;
+                while let Ok((percentage, _)) = content_cursor.take_until(&['{']) {
+                    code += percentage.trim();
+
                     content_cursor.skip_white_space();
-                    let value = match content_cursor.take_until(&[';']) {
-                        Ok((value, _)) => {
-                            content_cursor.take(';').ok_or("`;` is expected")?;
-                            value
-                        }
-                        Err(value) => value,
-                    };
-                    code += property.trim_end();
-                    code += ":";
-                    code += value.trim_end();
-                    code += ";";
+
+                    code += "{";
+                    let content = content_cursor.take_brace().ok_or("`{` is expected")?;
+                    let mut content_cursor = Cursor::new(&content);
                     content_cursor.skip_white_space();
+                    while !content_cursor.is_empty() {
+                        let (property, _) = content_cursor
+                            .take_until(&[':'])
+                            .map_err(|_| "property is expected")?;
+                        content_cursor.take(':').ok_or("`:` is expected")?;
+                        content_cursor.skip_white_space();
+                        let value = match content_cursor.take_until(&[';']) {
+                            Ok((value, _)) => {
+                                content_cursor.take(';').ok_or("`;` is expected")?;
+                                value
+                            }
+                            Err(value) => value,
+                        };
+                        code += property.trim_end();
+                        code += ":";
+                        code += value.trim_end();
+                        code += ";";
+                        content_cursor.skip_white_space();
+                    }
+                    code += "}";
                 }
                 code += "}";
+
+                cursor.skip_white_space();
             }
-            code += "}";
 
-            cursor.skip_white_space();
-        }
+            let filename = self
+                .filename
+                .as_ref()
+                .map(|l| l.value())
+                .unwrap_or("style".into());
+            file.write(format!("{filename}\n").as_bytes())
+                .expect("Failed to save internal file for yew-style-in-rs");
 
-        let filename = self
-            .filename
-            .as_ref()
-            .map(|l| l.value())
-            .unwrap_or("style".into());
-        file.write(format!("{filename}\n").as_bytes())
-            .expect("Failed to save internal file for yew-style-in-rs");
+            file.write(code.as_bytes())
+                .expect("Failed to save internal file for yew-style-in-rs");
 
-        file.write(code.as_bytes())
-            .expect("Failed to save internal file for yew-style-in-rs");
+            anim_names
+        } else {
+            vec![]
+        };
 
         Ok(anim_names)
     }

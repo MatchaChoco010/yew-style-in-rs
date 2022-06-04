@@ -1,11 +1,12 @@
 [package]
 name = "yew-style-in-rs-core"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
-authors = ["Orito Itsuki <orito.itsuki@gmail.com>"]
+authors = ["ORITO Itsuki <orito.itsuki@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "Scoped CSS for Yew"
 repository = "https://github.com/MatchaChoco010/yew-style-in-rs"
 homepage = "https://github.com/MatchaChoco010/yew-style-in-rs"
 readme = "../../README.md"
+categories = ["web-programming", "wasm", "gui"]
 keywords = ["yew", "style", "css"]
