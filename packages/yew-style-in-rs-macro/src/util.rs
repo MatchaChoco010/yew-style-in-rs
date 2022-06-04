@@ -33,6 +33,8 @@ pub fn is_release() -> bool {
 // Get the directory from which the last directory was removed from the `--out-dir` argument
 // as a workaround.
 // if there is no `--out-dir` argument, then use default directory for `workspace/target/{profile}`.
+//
+// This method create Cargo.lock file if not exists, so this method should not call when dry-run.
 pub fn get_out_dir() -> PathBuf {
     let profile = if is_release() { "release" } else { "debug" };
 
@@ -60,6 +62,8 @@ pub fn get_out_dir() -> PathBuf {
 //
 // Currently rust workspace directory information is only in `cargo metadata`.
 // So execute `cargo metadata` and parse json to get workspace_root directory.
+//
+// This method create Cargo.lock file if not exists, so this method should not call when dry-run.
 pub fn get_cargo_workspace() -> PathBuf {
     WORKSPACE
         .get_or_init(|| {
@@ -88,6 +92,8 @@ pub fn get_cargo_workspace() -> PathBuf {
 //
 // `cargo metadata` return dependencies information/
 // So execute `cargo metadata` and parse json to get dependencies name.
+//
+// This method create Cargo.lock file if not exists, so this method should not call when dry-run.
 pub fn get_cargo_packages() -> Vec<String> {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let output = std::process::Command::new(env::var("CARGO").unwrap())

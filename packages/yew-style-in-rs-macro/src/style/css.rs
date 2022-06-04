@@ -68,7 +68,7 @@ impl Css {
 
         let mut state = STATE.lock().unwrap();
 
-        let id = if state.write_flag {
+        let id = if state.write_flag() {
             let (id, mut file) = state
                 .create_random_id_file()
                 .expect("Failed to save internal file for yew-style-in-rs");
