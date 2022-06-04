@@ -30,7 +30,6 @@ use std::env;
 use std::fs;
 use std::io::Write;
 use std::iter::repeat_with;
-use std::path::PathBuf;
 use std::sync::Mutex;
 
 // It is a singleton inherent in the proc macro process.
@@ -41,10 +40,10 @@ pub static STATE: Lazy<Mutex<State>> = Lazy::new(|| {
 });
 
 pub struct State {
-    pub build_path: PathBuf,
-    pub lockfile_path: PathBuf,
-    pub package_path: PathBuf,
-    pub write_flag: bool,
+    // pub build_path: PathBuf,
+    // pub lockfile_path: PathBuf,
+    // pub package_path: PathBuf,
+    write_flag: Option<bool>,
 }
 impl State {
     // Create `target/release/build-yew-style-in-rs/` directory,
@@ -60,40 +59,54 @@ impl State {
         }
         unsafe { ::libc::atexit(dropper) };
 
-        let out_dir = crate::util::get_out_dir();
+        Ok(Self {
+            // build_path,
+            // lockfile_path,
+            // package_path,
+            write_flag: None,
+        })
+    }
 
-        let build_path = out_dir.join("build-yew-style-in-rs");
+    // Get write to disk flag.
+    // If not initialized, then return false.
+    pub fn write_flag(&self) -> bool {
+        self.write_flag.unwrap_or(false)
+    }
 
-        let package_path = build_path.join(env::var("CARGO_PKG_NAME")?);
+    // Set write to disk flag.
+    // This method may call multiple time in the same package build time.
+    pub fn set_write_flag(&mut self, flag: bool) {
+        // when first time set write flag to true, delete package temporary files.
+        if !self.write_flag() && flag {
+            let out_dir = crate::util::get_out_dir();
+            let build_path = out_dir.join("build-yew-style-in-rs");
+            let package_path = build_path.join(env::var("CARGO_PKG_NAME").unwrap());
 
-        if package_path.exists() {
-            for entry in fs::read_dir(&package_path)? {
-                let entry = entry?;
-                let path = entry.path();
-                if path.is_file() {
-                    fs::remove_file(path)?;
+            if package_path.exists() {
+                for entry in fs::read_dir(&package_path).unwrap() {
+                    let entry = entry.unwrap();
+                    let path = entry.path();
+                    if path.is_file() {
+                        fs::remove_file(path).unwrap();
+                    }
                 }
             }
         }
 
-        let lockfile_path = build_path.join("lockfile");
-
-        Ok(Self {
-            build_path,
-            lockfile_path,
-            package_path,
-            write_flag: false,
-        })
+        self.write_flag = Some(flag);
     }
 
     // Check `target/release/build-yew-style-in-rs/<CRATE NAME>/<RANDOM 8 CHARACTER>`
     // is exists or not for every exist <CRATE NAME> directories,
     fn exists_id(&self, id: &str) -> bool {
-        if !self.build_path.exists() {
-            fs::create_dir_all(&self.build_path).unwrap();
+        let out_dir = crate::util::get_out_dir();
+        let build_path = out_dir.join("build-yew-style-in-rs");
+
+        if !build_path.exists() {
+            fs::create_dir_all(&build_path).unwrap();
         }
 
-        fs::read_dir(&self.build_path)
+        fs::read_dir(&build_path)
             .expect("build yew-style-in-rs dir is not exists")
             .into_iter()
             .map(|entry| {
@@ -117,22 +130,27 @@ impl State {
     // Create `target/release/build-yew-style-in-rs/<CRATE NAME>/<RANDOM 8 CHARACTER>`
     // for new <RANDOM 8 CHARACTER>.
     pub fn create_random_id_file(&mut self) -> Result<(String, fs::File)> {
-        if !self.build_path.exists() {
-            fs::create_dir_all(&self.build_path)?;
+        let out_dir = crate::util::get_out_dir();
+        let build_path = out_dir.join("build-yew-style-in-rs");
+        let package_path = build_path.join(env::var("CARGO_PKG_NAME").unwrap());
+        let lockfile_path = build_path.join("lockfile");
+
+        if !build_path.exists() {
+            fs::create_dir_all(&build_path)?;
         }
 
-        let mut lockfile = LockFile::open(&self.lockfile_path)?;
+        let mut lockfile = LockFile::open(&lockfile_path)?;
         lockfile.lock()?;
 
-        if !self.package_path.exists() {
-            fs::create_dir_all(&self.package_path)?;
+        if !package_path.exists() {
+            fs::create_dir_all(&package_path)?;
         }
 
         let (id, file) = loop {
             let id = repeat_with(fastrand::alphabetic)
                 .take(8)
                 .collect::<String>();
-            let id_path = self.package_path.join(&id);
+            let id_path = package_path.join(&id);
             if !self.exists_id(&id) {
                 let file = fs::File::create(id_path)?;
                 break (id, file);
@@ -150,18 +168,21 @@ impl State {
     // CSS fragments first line is filename for output css file.
     fn generate_css(&mut self) {
         // if not write_flag, do nothing.
-        if !self.write_flag {
+        if !self.write_flag() {
             return;
         }
 
+        let out_dir = crate::util::get_out_dir();
+        let build_path = out_dir.join("build-yew-style-in-rs");
+
         // Generate build path is not exists
-        if !self.build_path.exists() {
-            fs::create_dir_all(&self.build_path).unwrap();
+        if !build_path.exists() {
+            fs::create_dir_all(&build_path).unwrap();
         }
 
         // Removing CSS files from a deleted package
         let packages = crate::util::get_cargo_packages();
-        for entry in fs::read_dir(&self.build_path).unwrap() {
+        for entry in fs::read_dir(&build_path).unwrap() {
             let entry = entry.unwrap();
             let path = entry.path();
             if path.is_dir() {
@@ -191,7 +212,7 @@ impl State {
 
         // Write css files
         let mut hashmap = HashMap::new();
-        for p in fs::read_dir(&self.build_path)
+        for p in fs::read_dir(&build_path)
             .expect("build yew-style-in-rs dir is not exists")
             .into_iter()
             .map(|entry| {

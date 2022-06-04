@@ -12,7 +12,7 @@ pub fn style_with_write(tokens: TokenStream) -> TokenStream {
     {
         use crate::state::*;
         let mut state = STATE.lock().unwrap();
-        state.write_flag = true;
+        state.set_write_flag(true);
     }
 
     // expand macro
@@ -27,7 +27,7 @@ pub fn style_without_write(tokens: TokenStream) -> TokenStream {
     {
         use crate::state::*;
         let mut state = STATE.lock().unwrap();
-        state.write_flag = false;
+        state.set_write_flag(false);
     }
 
     // expand macro

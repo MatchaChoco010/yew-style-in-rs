@@ -80,7 +80,7 @@ impl Keyframes {
 
         let mut state = STATE.lock().unwrap();
 
-        let anim_names = if state.write_flag {
+        let anim_names = if state.write_flag() {
             let (id, mut file) = state
                 .create_random_id_file()
                 .expect("Failed to save internal file for yew-style-in-rs");
