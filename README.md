@@ -2,15 +2,7 @@
 [![crates.io](https://img.shields.io/crates/v/yew-style-in-rs.svg)](https://crates.io/crates/yew-style-in-rs)
 [![docs.rs](https://docs.rs/yew-style-in-rs/badge.svg)](https://docs.rs/yew-style-in-rs)
 
-
-
-https://user-images.githubusercontent.com/20170107/171972537-a8e9aa37-36c1-473c-b50e-8268896efbc8.mp4
-
-
-
 Scoped CSS in Rust for Yew.
-
-[Demo](https://matchachoco010.github.io/yew-scroll-area/)
 
 ## example
 
